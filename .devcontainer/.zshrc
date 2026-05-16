@@ -105,7 +105,6 @@ source $ZSH/oh-my-zsh.sh
 zstyle ':omz:update' mode disabled
 
 export PATH=$PATH:/usr/local/go/bin
-
 # pnpm
 export PNPM_HOME="/home/node/.local/share/pnpm"
 case ":$PATH:" in
