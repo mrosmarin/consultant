@@ -1,0 +1,87 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@0.0.38"
+      ]
+    },
+    "linear": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "mcp-remote",
+        "https://mcp.linear.app/mcp"
+      ],
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "enabled": true
+    },
+    "vercel": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "mcp-remote",
+        "https://mcp.vercel.com"
+      ],
+      "enabled": true
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CONTEXT7_TOKEN}"
+      },
+      "enabled": true
+    },
+    "lovable-mcp-dev": {
+      "type": "local",
+      "command": [
+        "node",
+        "/home/node/lovable-mcp-server/enhanced-simple-server.js",
+        "--project-path",
+        "/workspaces/usrelocators/nobodymove-poc"
+      ],
+      "environment": {
+        "NODE_ENV": "development"
+      },
+      "enabled": true
+    },
+    "supabase": {
+      "type": "remote",
+      "url": "http://127.0.0.1:54321/mcp"
+    },
+    "next-devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "next-devtools-mcp@latest"
+      ]
+    },
+    "shadcn": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "shadcn@4.7.0",
+        "mcp"
+      ]
+    }
+  }
+}

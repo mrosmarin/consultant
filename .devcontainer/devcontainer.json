@@ -1,0 +1,51 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/javascript-node-postgres
+{
+	"name": "consultant_devcontainer",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"mounts": [
+		"source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached",
+		"source=${localEnv:HOME}/Projects/consultant/.devcontainer/.bashrc,target=/home/node/.bashrc,type=bind,consistency=cached",
+		"source=${localEnv:HOME}/Projects/consultant/.devcontainer/.zshrc,target=/home/node/.zshrc,type=bind,consistency=cached",	
+		"source=claude-code-config,target=/home/node/.claude,type=volume"  
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"pomdtr.excalidraw-editor",
+				"hediet.vscode-drawio",
+				"alefragnani.Bookmarks",
+				"christian-kohler.npm-intellisense",
+				"donjayamanne.githistory",
+				"kilocode.kilo-code",
+				"Anthropic.claude-code",
+				"MermaidChart.vscode-mermaid-chart",
+				"vstirbu.vscode-mermaid-preview",
+				"Supabase.vscode-supabase-extension",
+				"ms-playwright.playwright",
+				"frenco.vscode-vercel",
+				"ReprEng.csv"
+			]
+		}
+	},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": false
+		},
+		"ghcr.io/devcontainers-extra/features/typescript:2": {},
+		"ghcr.io/devcontainers/features/git:1": {}
+	},
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// This can be used to network with other containers or with the host.
+	// "forwardPorts": [3000, 5432],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "./.devcontainer/post-install.sh"
+	// Configure tool-specific properties.
+	// "customizations": {},
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}
