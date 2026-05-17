@@ -9,7 +9,7 @@
 		"source=${localEnv:HOME}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached",
 		"source=${localEnv:HOME}/Projects/consultant/.devcontainer/.bashrc,target=/home/node/.bashrc,type=bind,consistency=cached",
 		"source=${localEnv:HOME}/Projects/consultant/.devcontainer/.zshrc,target=/home/node/.zshrc,type=bind,consistency=cached",	
-		"source=claude-code-config,target=/home/node/.claude,type=volume"  
+		"source=consultant-claude-code-config,target=/home/node/.claude,type=volume"  
 	],
 	"customizations": {
 		"vscode": {

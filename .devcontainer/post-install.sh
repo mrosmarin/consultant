@@ -35,3 +35,5 @@ sudo make install
 
 pnpm add turbo --global
 
+sudo chown -R 1000:1000 /home/node/.claude
+
