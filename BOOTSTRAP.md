@@ -56,7 +56,7 @@ All environments use **devcontainers running VS Code with Docker-in-Docker**.
 - Do you have an existing `.devcontainer/devcontainer.json`? If so, what's in it?
 - Are there local services started via Docker Compose? (e.g. local database, Redis)
 - What ports do your dev servers use? (e.g. `3000`, `8080`)
-- Are there `.env.local` or `.env` files that need to be copied into worktrees?
+- Are there `.env.local` or `.env` files that need to be copied into worktrees? List the glob patterns (these go into `.worktreeinclude` — e.g. `.env.local`, `apps/*/.env.local`, `config/local.json`).
 - What is the first-time setup sequence? (e.g. `pnpm install` → `docker compose up` → `pnpm dev`)
 
 ### 6 — CI/CD
@@ -122,15 +122,22 @@ Claude Code: once all answers are gathered, perform these steps in order:
 
    Populate each file with what's known from the bootstrap answers. Mark sections that need more detail with `<!-- TODO: fill in after first sprint -->`. The memory bank doesn't need to be perfect — it just needs to exist so the first real session has something to read.
 
-4. **Update the Makefile** — wire `worktree-new`, `worktree-list`, `worktree-prune`, `install`, `dev`, `up`, and any other targets to match the actual commands.
+4. **Hydrate the worktree script and `.worktreeinclude`.** In `scripts/worktree-new.sh`, replace:
+   - `TICKET_PREFIX="<PREFIX>"` with the actual ticket prefix (lowercase).
+   - `BASE_BRANCH="<BASE_BRANCH>"` with the actual base branch.
+   - `<INSTALL_CMD>` and `<DEV_CMD>` / `<DEV_PORT>` in the help text at the bottom.
 
-5. **Update README.md** with project name, description, setup instructions, and architecture overview.
+   In `.worktreeinclude`, replace the default patterns with the actual glob patterns from Q5 (e.g. `apps/*/.env.local`, `.env`, `config/local.json`). Make sure `chmod +x scripts/worktree-new.sh scripts/claude-audit.sh`.
 
-6. **Review all files** for any remaining `<PLACEHOLDER>` or `TBD` markers. List them for the user.
+5. **Update the Makefile** — wire `worktree-new`, `worktree-list`, `worktree-prune`, `install`, `dev`, `up`, `claude-audit`, and any other targets to match the actual commands. Remove commented-out placeholder targets that don't apply (e.g. `db-*` if there's no database yet).
 
-7. **Delete this file** (`BOOTSTRAP.md`).
+6. **Update README.md** with project name, description, setup instructions, and architecture overview.
 
-8. **Commit everything:**
+7. **Review all files** for any remaining `<PLACEHOLDER>` or `TBD` markers. List them for the user.
+
+8. **Delete this file** (`BOOTSTRAP.md`).
+
+9. **Commit everything:**
    ```
    chore(bootstrap): hydrate project docs and initialize memory bank
    ```
@@ -149,5 +156,8 @@ After bootstrap, the repo should have:
 | `WORKTREES.md` | Parallel worktree workflow |
 | `README.md` | Project overview and quickstart |
 | `Makefile` | Day-to-day commands |
+| `scripts/worktree-new.sh` | Worktree creation helper |
+| `scripts/claude-audit.sh` | Claude Code permission settings auditor |
+| `.worktreeinclude` | Gitignored files to copy into new worktrees |
 | `memory-bank/` | Session memory (activeContext.md, progress.md, etc.) |
 | `.claude/rules/memory-bank.md` | Claude Code rule to load memory bank |

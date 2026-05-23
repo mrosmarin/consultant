@@ -30,16 +30,19 @@
       }
     },
     "next-devtools": {
-      "command": "npx",
+      "type": "stdio", 
+      "command": "npx",      
       "args": [
         "-y",
         "next-devtools-mcp@latest"
       ]
     },
     "shadcn": {
-      "command": "npx",
+      "type": "stdio",
+      "command": "npx",      
       "args": [
-        "shadcn@4.7.0",
+        "-y",
+        "shadcn@latest",
         "mcp"
       ]
     }

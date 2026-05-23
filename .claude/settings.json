@@ -1,48 +1,18 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "allow": [
-      "Bash(python3 -c ' *)",
-      "mcp__linear__save_issue",
-      "mcp__linear__list_issues",
-      "Bash(pandoc --version)",
-      "Bash(python3 -c \"import docx\")",
-      "Bash(python3 -m pip install python-docx -q)",
-      "Bash(python3 -m pip install python-docx -q --break-system-packages)",
-      "mcp__playwright__browser_navigate",
-      "Bash(python3 nobodymove-poc/docs/diagrams/gen_page5_routing.py)",
-      "WebFetch(domain:supabase.com)",
-      "WebFetch(domain:vercel.com)",
-      "mcp__linear__list_teams",
-      "mcp__linear__list_projects",
-      "mcp__linear__get_project",
-      "mcp__linear__get_issue",
-      "Bash(pnpm install *)",
-      "Bash(pnpm turbo *)",
-      "Bash(pnpm --dir /workspaces/usrelocators/relo-apps turbo build)",
-      "mcp__linear__save_comment",
-      "Bash(git check-ignore *)",
-      "Bash(git add *)",
-      "Bash(git commit -m ' *)",
-      "Bash(supabase --version)",
-      "Bash(docker --version)",
-      "Bash(pnpm --version)",
-      "Read(//usr/**)",
-      "Bash(npx supabase *)",
-      "Bash(echo \"=== POC config.toml project_id ===\" ; grep -m1 \"project_id\" nobodymove-poc/supabase/config.toml 2>&1 ; echo \"\" ; echo \"=== POC supabase/migrations \\(what's actually in the DB\\) ===\" ; ls nobodymove-poc/supabase/migrations/ 2>&1 | wc -l ; echo \"migration files\" ; echo \"\" ; echo \"=== POC supabase status ===\" ; cd nobodymove-poc && npx supabase status 2>&1 | head -20 ; cd ..)",
-      "Read(//workspaces/**)",
-      "Bash(grep \"_quiet-carry-core$\")",
-      "Bash(xargs -r docker stop)",
-      "Bash(xargs -r docker rm)",
-      "Bash(npx --yes supabase init)",
-      "Bash(npx --yes supabase start)",
-      "Bash(make -n help)",
-      "Bash(make help *)",
-      "Bash(make supabase-ps *)",
-      "Bash(echo \"DEV_PID=$!\")",
-      "Bash(jobs -p)"
+    "deny": [
+      "Bash(git commit -a*)",
+      "Bash(git commit --no-verify*)",
+      "Bash(git commit -n *)",
+      "Bash(git commit -n)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(* --force*)"
     ]
   },
-  "enabledPlugins": {
+   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
@@ -50,8 +20,11 @@
     "claude-code-setup@claude-plugins-official": true,
     "supabase@claude-plugins-official": true,
     "chrome-devtools-mcp@claude-plugins-official": true,
-    "stripe@claude-plugins-official": true,
-    "remember@claude-plugins-official": true,
-    "semgrep@claude-plugins-official": true
-  }
+    "stripe@claude-plugins-official": true
+  },
+  "attribution": {
+    "commit": "🤖 Generated with Claude Code\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+    "pr": "🤖 Generated with Claude Code"
+  },
+  "cleanupPeriodDays": 90
 }

@@ -6,7 +6,7 @@
       "command": [
         "npx",
         "-y",
-        "@playwright/mcp@0.0.38"
+        "@playwright/mcp@latest"
       ]
     },
     "linear": {
@@ -49,23 +49,6 @@
       },
       "enabled": true
     },
-    "lovable-mcp-dev": {
-      "type": "local",
-      "command": [
-        "node",
-        "/home/node/lovable-mcp-server/enhanced-simple-server.js",
-        "--project-path",
-        "/workspaces/usrelocators/nobodymove-poc"
-      ],
-      "environment": {
-        "NODE_ENV": "development"
-      },
-      "enabled": true
-    },
-    "supabase": {
-      "type": "remote",
-      "url": "http://127.0.0.1:54321/mcp"
-    },
     "next-devtools": {
       "type": "local",
       "command": [
@@ -79,7 +62,7 @@
       "command": [
         "npx",
         "-y",
-        "shadcn@4.7.0",
+        "shadcn@latest",
         "mcp"
       ]
     }

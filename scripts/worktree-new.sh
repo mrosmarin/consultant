@@ -4,25 +4,32 @@
 #
 # Usage:
 #   scripts/worktree-new.sh <ticket> <slug>
-#   scripts/worktree-new.sh 192 worktree-workflow
+#   scripts/worktree-new.sh 123 my-feature
 #
-# Creates a worktree at .claude/worktrees/nob-<ticket>-<slug>/
+# Creates a worktree at .claude/worktrees/<PREFIX>-<ticket>-<slug>/
 # (nested inside the repo, gitignored) on branch
-# feature/nob-<ticket>-<slug> off origin/qa, and copies the gitignored
-# .env.local files so Supabase works immediately.
+# feature/<PREFIX>-<ticket>-<slug> off origin/<BASE_BRANCH>, and copies
+# gitignored files listed in .worktreeinclude so local services work
+# immediately.
 #
-# Branch protection requires feature/nob-XXX-* names; this script
-# enforces that convention and is the canonical way to spin up a new
+# Branch naming convention requires feature/<PREFIX>-XXX-* names; this
+# script enforces that and is the canonical way to spin up a new
 # worktree in this repo. See WORKTREES.md.
 
 set -euo pipefail
 
+# ── Configuration ─────────────────────────────────────────────────────
+# Change these two values to match your project.
+TICKET_PREFIX="<PREFIX>"        # e.g. "nob", "eng", "proj"
+BASE_BRANCH="<BASE_BRANCH>"    # e.g. "qa", "develop", "staging"
+# ──────────────────────────────────────────────────────────────────────
+
 if [[ $# -ne 2 ]]; then
   cat >&2 <<EOF
 Usage: $0 <ticket> <slug>
-Example: $0 192 worktree-workflow
+Example: $0 123 my-feature
 
-  ticket  Linear NOB ticket number (digits only; "nob-" prefix is stripped)
+  ticket  Linear ticket number (digits only; "${TICKET_PREFIX}-" prefix is stripped)
   slug    short kebab-case description (lowercase letters, digits, hyphens)
 EOF
   exit 2
@@ -31,9 +38,12 @@ fi
 TICKET_RAW="$1"
 SLUG="$2"
 
-# Normalise ticket: strip optional "nob-"/"NOB-" prefix, lowercase
-TICKET="${TICKET_RAW#nob-}"
-TICKET="${TICKET#NOB-}"
+PREFIX_LOWER="$(printf '%s' "$TICKET_PREFIX" | tr '[:upper:]' '[:lower:]')"
+PREFIX_UPPER="$(printf '%s' "$TICKET_PREFIX" | tr '[:lower:]' '[:upper:]')"
+
+# Normalise ticket: strip optional prefix (case-insensitive), lowercase
+TICKET="${TICKET_RAW#${PREFIX_LOWER}-}"
+TICKET="${TICKET#${PREFIX_UPPER}-}"
 TICKET="$(printf '%s' "$TICKET" | tr '[:upper:]' '[:lower:]')"
 
 if [[ ! "$TICKET" =~ ^[0-9]+$ ]]; then
@@ -50,8 +60,8 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
   exit 1
 }
 
-BRANCH="feature/nob-${TICKET}-${SLUG}"
-WORKTREE_DIR="${REPO_ROOT}/.claude/worktrees/nob-${TICKET}-${SLUG}"
+BRANCH="feature/${PREFIX_LOWER}-${TICKET}-${SLUG}"
+WORKTREE_DIR="${REPO_ROOT}/.claude/worktrees/${PREFIX_LOWER}-${TICKET}-${SLUG}"
 
 # Refuse if branch already exists locally
 if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/${BRANCH}"; then
@@ -68,9 +78,9 @@ if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/${BRANCH}"
   exit 1
 fi
 
-# Refuse if origin/qa is missing
-if ! git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/qa"; then
-  echo "Error: origin/qa not found — fetch origin first" >&2
+# Refuse if base branch is missing
+if ! git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/${BASE_BRANCH}"; then
+  echo "Error: origin/${BASE_BRANCH} not found — fetch origin first" >&2
   exit 1
 fi
 
@@ -84,29 +94,43 @@ mkdir -p "${REPO_ROOT}/.claude/worktrees"
 
 echo "→ Creating worktree:"
 echo "    path:   $WORKTREE_DIR"
-echo "    branch: $BRANCH (from origin/qa)"
-git -C "$REPO_ROOT" worktree add "$WORKTREE_DIR" -b "$BRANCH" origin/qa
+echo "    branch: $BRANCH (from origin/${BASE_BRANCH})"
+git -C "$REPO_ROOT" worktree add "$WORKTREE_DIR" -b "$BRANCH" "origin/${BASE_BRANCH}"
 
-# Copy gitignored .env.local files so Supabase can connect right away
-ENV_FILES=(
-  "relo-apps/apps/nobodymove/.env.local"
-  "relo-apps/apps/central/.env.local"
-)
+# Copy gitignored files listed in .worktreeinclude
+INCLUDE_FILE="${REPO_ROOT}/.worktreeinclude"
 
-echo "→ Copying .env.local files..."
-for f in "${ENV_FILES[@]}"; do
-  src="${REPO_ROOT}/${f}"
-  dst="${WORKTREE_DIR}/${f}"
-  if [[ -f "$src" ]]; then
-    mkdir -p "$(dirname "$dst")"
-    cp "$src" "$dst"
-    echo "    [ok] $f"
-  else
-    echo "    [skip] $f (not present in main checkout)"
-  fi
-done
+if [[ -f "$INCLUDE_FILE" ]]; then
+  echo "→ Copying files from .worktreeinclude..."
 
-REL_PATH=".claude/worktrees/nob-${TICKET}-${SLUG}"
+  while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+    # Skip blank lines and comments
+    [[ -z "$pattern" || "$pattern" =~ ^[[:space:]]*# ]] && continue
+
+    # Expand globs relative to repo root
+    shopt -s nullglob globstar
+    matches=( ${REPO_ROOT}/${pattern} )
+    shopt -u nullglob globstar
+
+    if [[ ${#matches[@]} -eq 0 ]]; then
+      echo "    [skip] $pattern (no matches in main checkout)"
+      continue
+    fi
+
+    for src in "${matches[@]}"; do
+      # Get path relative to repo root
+      rel="${src#${REPO_ROOT}/}"
+      dst="${WORKTREE_DIR}/${rel}"
+      mkdir -p "$(dirname "$dst")"
+      cp "$src" "$dst"
+      echo "    [ok] $rel"
+    done
+  done < "$INCLUDE_FILE"
+else
+  echo "→ No .worktreeinclude found — skipping file copy"
+fi
+
+REL_PATH=".claude/worktrees/${PREFIX_LOWER}-${TICKET}-${SLUG}"
 
 cat <<EOF
 
@@ -114,11 +138,11 @@ Worktree ready at ${REL_PATH}/
 
 Next:
   cd ${REL_PATH}
-  (cd relo-apps && pnpm install)   # each worktree needs its own node_modules
+  <INSTALL_CMD>                    # each worktree needs its own dependencies
   claude                            # start Claude Code in the worktree
 
-Run dev on a non-default PORT if another worktree's already on 3000/3001:
-  cd relo-apps && PORT=3010 pnpm dev
+Run dev on a non-default port if another worktree is already running:
+  PORT=<DEV_PORT>1 <DEV_CMD>
 
 Cleanup after the PR merges:
   git worktree remove ${REL_PATH}

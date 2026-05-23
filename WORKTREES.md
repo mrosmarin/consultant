@@ -9,7 +9,7 @@ The Claude Code CLI ships a `--worktree` flag that auto-creates worktrees, but t
 1. enforces the `feature/<PREFIX>-XXX-<slug>` naming convention,
 2. branches off `origin/<BASE_BRANCH>` (the only valid base for feature work),
 3. creates the worktree under `.claude/worktrees/` (gitignored) so the workspace stays inside the repo,
-4. copies gitignored config files (<ENV_FILES>) so services work in the new worktree without manual setup.
+4. copies gitignored files listed in [`.worktreeinclude`](.worktreeinclude) so services work in the new worktree without manual setup.
 
 ## Create a worktree
 
@@ -97,6 +97,6 @@ make worktree-prune
 ## Caveats
 
 - **Don't use `claude --worktree`** for PR-bound work — auto-named branches won't follow the `feature/<PREFIX>-XXX-*` convention. Use `make worktree-new` instead.
-- **Env file updates don't sync.** The helper copies once at creation. If you rotate keys or change config, recopy manually or recreate the worktree.
+- **`.worktreeinclude` files don't auto-sync.** The helper copies once at creation. If you rotate keys or change config, recopy manually or recreate the worktree.
 - **Lockfile churn.** Avoid running installs with mismatched flags across worktrees — keep the lockfile consistent. CI is the source of truth.
 - **`.claude/worktrees/` is gitignored.** Worktree files live inside the repo but are never tracked, so `git add .` from the main checkout won't sweep them in.
