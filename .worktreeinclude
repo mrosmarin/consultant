@@ -1,4 +1,5 @@
-.env
+# Gitignored files copied into each new worktree by scripts/worktree-new.sh.
+# Globs are relative to the repo root. One pattern per line; # starts a comment.
+apps/*/.env.local
+apps/*/.env.*.local
 .env.local
-.env.*.local
-config/local.json
