@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status: project scaffolding complete; the Next.js app has not been generated yet (first ticket).
+> Status (M1 — Foundation): monorepo + `apps/web` (Next.js 16) scaffolded; Supabase, Tailwind/shadcn, CI, and Vercel are in progress.
 
 ## Stack
 
@@ -18,8 +18,8 @@ The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public 
 ```
 .
 ├── apps/
-│   └── web/                 # Next.js app  (created in the first ticket)
-├── supabase/                # Supabase migrations + config  (created in the first ticket)
+│   └── web/                 # Next.js 16 app (App Router, TS)
+├── supabase/                # Supabase migrations + config  (added in DEV-85)
 ├── .agents/skills/          # checked-in agent skills (pinned in skills-lock.json)
 ├── .claude/                 # Claude Code config, rules, worktrees (gitignored worktrees)
 ├── .devcontainer/           # devcontainer (Docker-in-Docker) + tooling tokens
