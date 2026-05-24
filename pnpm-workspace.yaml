@@ -4,6 +4,8 @@ packages:
 
 # Native packages allowed to run install scripts (pnpm 10 blocks by default).
 # sharp: Next.js image optimization. unrs-resolver: eslint import resolver.
+# esbuild: used by drizzle-kit (migrations/studio).
 onlyBuiltDependencies:
   - sharp
   - unrs-resolver
+  - esbuild

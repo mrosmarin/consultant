@@ -4,7 +4,8 @@
 
 - **Monorepo:** pnpm workspaces + **Turborepo**. Web app at `apps/web`.
 - **Framework:** Next.js (App Router) + TypeScript. Package manager **pnpm**.
-- **Database:** Supabase (Postgres). Local dev via the **Supabase CLI** (`pnpm supabase start`) — one shared local stack (`54321` API / `54322` DB / `54323` Studio).
+- **Database:** **Neon** (serverless Postgres) via **Drizzle ORM** (`drizzle-orm/neon-http` + `@neondatabase/serverless`). No local DB — connect to a Neon dev branch via `DATABASE_URL`.
+- **Auth:** **Neon Auth** (managed, built on Better Auth). Auth data in the `neon_auth` schema, RLS-compatible. (Beta; AWS-only.)
 - **UI:** Tailwind v4 + shadcn/ui, dark mode.
 - **Hosting:** Vercel (Git integration: branch → preview, `main` → production).
 - **Testing:** Vitest (unit/component) + Playwright (E2E).
@@ -20,13 +21,13 @@
 
 - **Devcontainer** (VS Code + Docker-in-Docker). `postCreate` runs `.devcontainer/post-install.sh`, which installs pnpm/turbo (global), gh, commitizen-go, Go, and the Claude/Kilo CLIs.
 - Tooling tokens live in `.devcontainer/.env` (gitignored, auto-loaded into the container): `LINEAR_API_KEY`, `CONTEXT7_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `VERCEL_TOKEN`. These are MCP/CLI inputs — **not** app runtime vars.
-- App env vars live in `apps/web/.env.local` (gitignored): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only).
-- The Postgres service in `.devcontainer/docker-compose.yml` is **commented out** — we use the Supabase CLI stack, not a bare Postgres container.
+- App env vars live in `apps/web/.env.local` (gitignored): `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct, migrations), `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (server-only).
+- The Postgres service in `.devcontainer/docker-compose.yml` stays **commented out** — Neon is cloud, so there's no local DB container at all.
 
 ## Ports & worktrees
 
 - Next.js dev base port `3000`. `make worktree-new` assigns each worktree a deterministic port `3000 + (ticket % 1000)` and writes `PORT` into the worktree's `apps/web/.env.local` when present.
-- The Supabase stack is **shared** — start it once from the main checkout; worktrees connect to it. Don't boot a second stack per worktree.
+- No local DB to share — each worktree points `DATABASE_URL` at a Neon branch (a shared dev branch, or its own ephemeral branch for isolated schema work).
 
 ## CI
 
@@ -42,6 +43,6 @@
 ## Tool usage patterns
 
 - Run quality gates via `make` (`make ci`, `make lint`, `make test`, etc.).
-- Schema changes only via Supabase migration files committed to git; RLS on every table.
+- Schema changes only via Drizzle migrations committed to git (`db:generate` → review SQL → `db:migrate`); RLS on every table.
 
 <!-- TODO: fill in concrete package versions and the turbo task graph once apps/web is scaffolded -->

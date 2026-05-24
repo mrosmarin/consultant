@@ -5,8 +5,8 @@
 #
 # Quick reference:
 #   make help               # list everything
-#   make up                 # start Supabase + dev server
-#   make down               # stop Supabase
+#   make up                 # run the dev server (Neon is cloud — nothing local to boot)
+#   make db-generate        # generate a Drizzle migration
 #   make ci                 # reproduce CI locally
 #   make claude-audit       # audit Claude Code permission settings
 
@@ -45,27 +45,10 @@ clean-all: ## Remove caches AND dependencies (forces full reinstall)
 	$(MAKE) clean
 	find . -type d -name "node_modules" -prune -exec rm -rf {} +
 
-# ─── Local services (Supabase) ───────────────────────────────────────
-# One shared local Supabase stack (Postgres + Studio + Auth) run from the
-# main checkout. Worktrees connect to it — don't start a second stack.
-# Uses the project-local Supabase CLI (`pnpm supabase ...`).
-
-.PHONY: services-start
-services-start: ## Start the local Supabase stack
-	pnpm supabase start
-
-.PHONY: services-stop
-services-stop: ## Stop the local Supabase stack
-	pnpm supabase stop
-
-.PHONY: services-status
-services-status: ## Show Supabase status
-	@pnpm supabase status 2>/dev/null || echo "(Supabase not running)"
-
-.PHONY: services-restart
-services-restart: ## Stop and restart Supabase
-	$(MAKE) services-stop
-	$(MAKE) services-start
+# ─── Local services ──────────────────────────────────────────────────
+# The database is Neon (serverless, cloud) — there is no local stack to
+# start. Local dev connects to a Neon dev branch via DATABASE_URL in
+# apps/web/.env.local. See DEPLOYMENT-ENV.md.
 
 # ─── Dev servers ─────────────────────────────────────────────────────
 
@@ -129,24 +112,24 @@ ci: ## Reproduce CI locally — full quality gate
 	$(MAKE) test
 	@echo "✓ CI gate passed"
 
-# ─── Database / migrations (Supabase) ────────────────────────────────
+# ─── Database / migrations (Drizzle + Neon) ──────────────────────────
+# Requires apps/web/.env.local with DATABASE_URL / DATABASE_URL_UNPOOLED.
 
-.PHONY: db-reset
-db-reset: ## Reset local DB (re-run migrations + seed)
-	pnpm supabase db reset
+.PHONY: db-generate
+db-generate: ## Generate a migration from schema changes
+	pnpm --filter web db:generate
 
 .PHONY: db-migrate
-db-migrate: ## Apply pending migrations to the local DB
-	pnpm supabase migration up
+db-migrate: ## Apply pending migrations to the database
+	pnpm --filter web db:migrate
 
-.PHONY: db-migrate-new
-db-migrate-new: ## Create a new migration: make db-migrate-new NAME=add_leads
-	@if [[ -z "$(NAME)" ]]; then echo "Usage: make db-migrate-new NAME=<name>"; exit 2; fi
-	pnpm supabase migration new $(NAME)
+.PHONY: db-push
+db-push: ## Push schema directly to the DB (dev/prototyping only)
+	pnpm --filter web db:push
 
-.PHONY: db-diff
-db-diff: ## Diff live local DB against the migration set
-	pnpm supabase db diff
+.PHONY: db-studio
+db-studio: ## Open Drizzle Studio
+	pnpm --filter web db:studio
 
 # ─── Worktrees (parallel feature branches) ───────────────────────────
 
@@ -184,20 +167,14 @@ claude-audit-verbose: ## Verbose audit with raw transcript matches
 # ─── Daily shortcuts ─────────────────────────────────────────────────
 
 .PHONY: up
-up: ## Daily start: bring up Supabase + dev server
-	$(MAKE) services-start
+up: ## Daily start: run the dev server (DB is Neon/cloud — nothing local to boot)
 	$(MAKE) dev
 
 .PHONY: down
-down: ## Daily stop: stop Supabase (dev servers are foreground — Ctrl+C them)
-	$(MAKE) services-stop
-	@echo ""
-	@echo "Tip: dev servers run in the foreground — stop them with Ctrl+C in their terminal."
+down: ## Daily stop (dev servers are foreground — Ctrl+C them)
+	@echo "Dev servers run in the foreground — stop them with Ctrl+C in their terminal."
+	@echo "The database is Neon (cloud) — nothing local to stop."
 
 .PHONY: status
-status: ## Quick view: Supabase status + git status
-	@echo "── Services ──"
-	@$(MAKE) -s services-status || true
-	@echo ""
-	@echo "── Git status ──"
+status: ## Quick view: git status
 	@git status --short

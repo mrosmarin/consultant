@@ -107,13 +107,15 @@ All development environments use **devcontainers with VS Code and Docker-in-Dock
 
 ```bash
 # 1. Open in devcontainer (VS Code will prompt, or use the command palette).
-#    postCreate runs .devcontainer/post-install.sh (pnpm, turbo, gh, supabase CLI, etc.)
+#    postCreate runs .devcontainer/post-install.sh (pnpm, turbo, gh, etc.)
 
 # 2. Install dependencies
 pnpm install
 
-# 3. Start the local Supabase stack + dev server
-make up
+# 3. Create apps/web/.env.local (copy .env.example; fill DATABASE_URL from Neon)
+
+# 4. Run the dev server
+make dev
 ```
 
 ## Environment variables
@@ -126,7 +128,7 @@ Each app has its own env file(s). Real values are never committed.
    cp apps/web/.env.example apps/web/.env.local
    ```
 
-2. **Fill in values** — Supabase URL + keys come from `supabase start` output (local) or the Supabase dashboard (cloud). See `apps/web/.env.example` for descriptions.
+2. **Fill in values** — `DATABASE_URL` / `DATABASE_URL_UNPOOLED` come from the Neon dashboard (Connection Details) or the Vercel↔Neon integration; Neon Auth vars from the Neon Auth setup. See `apps/web/.env.example` for descriptions.
 
 3. **Never commit `.env.local`.** It is gitignored at every level. `.env.example` is the only env file that ships.
 

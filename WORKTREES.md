@@ -50,11 +50,9 @@ cd .claude/worktrees/dev-192-...
 PORT=3192 pnpm dev             # → http://localhost:3192
 ```
 
-## Shared Supabase stack (don't duplicate)
+## Database (Neon — no local stack)
 
-The local Supabase stack (`supabase start`) binds fixed ports (`54321` API / `54322` DB / `54323` Studio) and is **shared** — start it **once from the main checkout**. Every worktree connects to the same instance via the `apps/web/.env.local` copied at creation time. Migrations are shared through git, so a single stack is correct.
-
-**Do not** run `supabase start` from inside a worktree — it will collide on the Supabase ports. If a worktree genuinely needs an isolated DB (rare), run a second stack with a custom `project_id` and offset ports in its `supabase/config.toml`.
+The database is **Neon** (serverless, cloud), so there's nothing local to run or share. Each worktree connects to a Neon branch via `DATABASE_URL` in its `apps/web/.env.local` (copied at creation time, when present). Point worktrees at a shared **dev branch**, or give a worktree its **own Neon branch** for isolated schema work — Neon branches are cheap and branch instantly. There are no DB ports to collide on.
 
 ## Git hooks
 

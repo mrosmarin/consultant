@@ -2,13 +2,14 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M1 — Foundation): monorepo + `apps/web` (Next.js 16) scaffolded; Supabase, Tailwind/shadcn, CI, and Vercel are in progress.
+> Status (M1 — Foundation): monorepo + `apps/web` (Next.js 16) scaffolded; Neon + Drizzle wired (provisioning pending), Tailwind/shadcn, CI, and Vercel in progress.
 
 ## Stack
 
 - **Monorepo** — pnpm workspaces + [Turborepo](https://turborepo.com). Web app at `apps/web`.
 - **Framework** — [Next.js](https://nextjs.org) (App Router) + TypeScript.
-- **Database** — [Supabase](https://supabase.com) (Postgres), local via the Supabase CLI.
+- **Database** — [Neon](https://neon.com) serverless Postgres via [Drizzle ORM](https://orm.drizzle.team).
+- **Auth** — [Neon Auth](https://neon.com/docs/auth/overview) (managed, built on Better Auth).
 - **UI** — Tailwind v4 + [shadcn/ui](https://ui.shadcn.com), with dark mode.
 - **Hosting** — [Vercel](https://vercel.com) (Git integration: branch → preview, `main` → production).
 - **Testing** — Vitest (unit/component) + Playwright (E2E).
@@ -19,7 +20,8 @@ The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public 
 .
 ├── apps/
 │   └── web/                 # Next.js 16 app (App Router, TS)
-├── supabase/                # Supabase migrations + config  (added in DEV-85)
+│       ├── src/db/          # Drizzle client + schema
+│       └── drizzle/         # generated Drizzle migrations
 ├── .agents/skills/          # checked-in agent skills (pinned in skills-lock.json)
 ├── .claude/                 # Claude Code config, rules, worktrees (gitignored worktrees)
 ├── .devcontainer/           # devcontainer (Docker-in-Docker) + tooling tokens
@@ -43,8 +45,10 @@ All development runs inside a **devcontainer** (VS Code + Docker-in-Docker).
 # 2. Install dependencies
 pnpm install        # or: make install
 
-# 3. Start Supabase + the dev server
-make up             # → http://localhost:3000
+# 3. Set apps/web/.env.local (copy from .env.example; fill DATABASE_URL from Neon)
+
+# 4. Start the dev server
+make dev            # → http://localhost:3000
 ```
 
 Run `make help` for the full command list (build, lint, types, tests, db, worktrees).
