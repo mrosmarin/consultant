@@ -12,6 +12,7 @@ _Last updated: 2026-05-24_
 - **pnpm + Turborepo monorepo + `apps/web` (Next.js 16.2.6)** — `pnpm install`, `make build`/`turbo build`, `lint`, `check-types` all pass; dev server boots on the worktree port and serves HTTP 200. (DEV-84, merged.)
 - **Drizzle ORM wired for Neon** — `drizzle.config.ts` + `apps/web/src/db` (client + schema); build/lint/types pass. (DEV-85.)
 - **Neon Auth (Better Auth) working** — sign-up/in/out, session, and `/account` route guard (`proxy.ts`) verified live against the real Neon DB (`neon_auth.user` row created). Own forms (no `auth-ui`). (DEV-85.)
+- **Tailwind v4 + shadcn/ui + dark mode** — PostCSS plugin, `@theme inline` slate tokens, `next-themes` toggle; auth/account/home restyled. Build/lint/types green; SSR renders shadcn components, compiled CSS has tokens + `.dark`. (DEV-86.)
 
 ## What's left to build
 
@@ -19,8 +20,8 @@ _Last updated: 2026-05-24_
 - [x] `develop` branch created and pushed.
 - [x] `apps/web` Next.js app scaffolded; Turborepo wired (`turbo.json`, `pnpm-workspace.yaml`, root `package.json`). _(DEV-84, merged)_
 - [x] Neon stack adopted: Drizzle + Neon Auth wired and verified end-to-end. _(DEV-85)_
-- [ ] Tailwind v4 + shadcn/ui installed; dark mode working (also restyle auth/account pages). _(DEV-86)_
-- [ ] GitHub Actions workflow (gated on `RUN_CI`). _(DEV-87)_
+- [x] Tailwind v4 + shadcn/ui installed; dark mode working; auth/account/home restyled. _(DEV-86)_
+- [ ] GitHub Actions workflow (gated on `RUN_CI`; build needs `NEON_AUTH_*` env). _(DEV-87)_
 - [ ] Vercel project connected (Git integration); Neon dev/staging/prod branches + per-env auth. _(DEV-88)_
 - [ ] Brand guidelines, information architecture, wireframes.
 

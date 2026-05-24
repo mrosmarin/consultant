@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M1 — Foundation): monorepo + `apps/web` (Next.js 16) scaffolded; Neon + Drizzle wired (provisioning pending), Tailwind/shadcn, CI, and Vercel in progress.
+> Status (M1 — Foundation): monorepo + `apps/web` (Next.js 16) scaffolded; Neon + Drizzle + Neon Auth wired; Tailwind v4 + shadcn/ui + dark mode in. Remaining: CI (DEV-87), Vercel + Neon branch provisioning (DEV-88), brand/IA (DEV-89).
 
 ## Stack
 

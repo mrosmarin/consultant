@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { ModeToggle } from "@/components/mode-toggle";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth/server";
 
 import { SignOutButton } from "./sign-out-button";
@@ -16,12 +18,22 @@ export default async function AccountPage() {
   }
 
   return (
-    <main style={{ maxWidth: 480, margin: "4rem auto", fontFamily: "system-ui, sans-serif" }}>
-      <h1>Account</h1>
-      <p>
-        Signed in as <strong>{session.user.email}</strong>
-      </p>
-      <SignOutButton />
-    </main>
+    <div className="relative flex min-h-dvh items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Account</CardTitle>
+          <CardDescription>Your EndlessWorlds portal.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <p className="text-sm">
+            Signed in as <strong>{session.user.email}</strong>
+          </p>
+          <SignOutButton />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
