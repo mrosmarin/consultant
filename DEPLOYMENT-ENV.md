@@ -10,10 +10,10 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 
 | Git branch | Deploy target (Vercel) | Scope | Migration / schema application |
 |---|---|---|---|
-| `main` | Production | Production | Apply via Supabase CLI/CI against the prod project |
-| `develop` | Preview (staging) | Preview | Apply against the staging Supabase project |
-| `feature/dev-XXX-*` PR | Preview | Preview | n/a (uses staging or a branch DB if configured) |
-| `localhost` | Local dev (devcontainer) | n/a | `make db-reset` / `supabase db reset` |
+| `main` | Production | Production | `drizzle-kit migrate` against the prod Neon branch |
+| `develop` | Preview (staging) | Preview | `drizzle-kit migrate` against the staging Neon branch |
+| `feature/dev-XXX-*` PR | Preview | Preview | optional per-PR Neon branch |
+| `localhost` | Local dev (devcontainer) | n/a | `make db-migrate` against a Neon dev branch |
 
 ---
 
@@ -21,9 +21,9 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 
 ### 1. Local (devcontainer)
 
-**What:** All development runs inside a **devcontainer with VS Code and Docker-in-Docker**. The local Supabase stack (Postgres + Studio + Auth) runs as Docker containers via the **Supabase CLI**.
+**What:** All development runs inside a **devcontainer with VS Code and Docker-in-Docker**. The database is **Neon** (serverless, cloud) — there is **no local DB container**. Local dev connects to a **Neon dev branch** over the network.
 
-**Where keys live:** `apps/web/.env.local` (gitignored). Populated from `supabase start` output or from `apps/web/.env.example`.
+**Where keys live:** `apps/web/.env.local` (gitignored). Copy `apps/web/.env.example` and fill `DATABASE_URL` / `DATABASE_URL_UNPOOLED` from the Neon dashboard (Connection Details) or the Vercel↔Neon integration.
 
 **Setup:**
 ```bash
@@ -31,31 +31,32 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 # Command Palette → "Dev Containers: Reopen in Container"
 
 pnpm install
-make up        # supabase start + dev server
+# set apps/web/.env.local (DATABASE_URL from a Neon dev branch)
+make dev       # dev server only — Neon is cloud, nothing local to boot
 ```
 
-**Ports:** Next.js dev server defaults to `3000`. The local Supabase stack uses `54321` (API), `54322` (DB), `54323` (Studio). When running multiple worktrees concurrently, each worktree gets a per-worktree Next.js `PORT` (base `3000` + ticket offset) — assigned by `make worktree-new`. The Supabase stack is **shared** — start it once from the main checkout; all worktrees connect to it. See [WORKTREES.md](WORKTREES.md).
+**Ports:** Next.js dev server defaults to `3000`. When running multiple worktrees concurrently, each worktree gets a per-worktree Next.js `PORT` (base `3000` + ticket offset) — assigned by `make worktree-new`. There is no local DB port to share; point each worktree's `DATABASE_URL` at a Neon branch (a shared dev branch, or its own). See [WORKTREES.md](WORKTREES.md).
 
 ### 2. Preview / PR
 
 **What:** When a PR is opened against `develop`:
 - Vercel builds + deploys a preview URL automatically (Git integration).
-- The preview points at the **staging Supabase project** unless a per-branch DB is configured.
-- On merge: the preview deployment is retained per Vercel's retention settings.
+- The preview points at the **staging Neon branch**, or a **per-PR Neon branch** if configured (Neon branching pairs with Vercel previews).
+- On merge: the preview deployment is retained per Vercel's retention settings; an ephemeral Neon branch can be auto-deleted.
 
 ### 3. Staging (`develop`)
 
 **What:**
 - The `develop` branch is the staging environment. All feature PRs target `develop` first.
 - Pushes to `develop` auto-deploy a Vercel preview/staging build.
-- Schema changes are applied to the staging Supabase project (`supabase db push` against the staging project ref).
+- Schema changes are applied to the **staging Neon branch** (`drizzle-kit migrate` with the staging `DATABASE_URL_UNPOOLED`).
 
 ### 4. Production (`main`)
 
 **What:**
 - The `main` branch is production. PRs come only from `develop`. No required approvals (solo); CI green when enabled.
 - Vercel deploys production on push to `main`.
-- Schema changes are applied to the production Supabase project (`supabase db push` against the prod project ref).
+- Schema changes are applied to the **production Neon branch** (`drizzle-kit migrate` with the prod `DATABASE_URL_UNPOOLED`).
 
 ---
 
@@ -75,18 +76,19 @@ The devcontainer auto-loads env vars from `.devcontainer/.env` (via `docker-comp
 
 **Regeneration policy:**
 - API tokens: rotate every ~90 days or immediately if compromised.
-- Supabase keys: rotate via the Supabase dashboard if leaked.
-- Project IDs/refs: never change unless a project is recreated.
+- Neon connection strings / Neon Auth secrets: rotate via the Neon dashboard if leaked.
+- Project IDs / branch names: never change unless a project/branch is recreated.
 
 ### App env vars (Vercel + local)
 
 | Var | Production | Staging (`develop`) | Preview | Source |
 |---|---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | prod project URL | staging project URL | staging | Supabase dashboard → Project Settings → API |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | prod anon key | staging anon key | staging | Supabase dashboard → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | prod service role | staging service role | staging | Supabase dashboard → API (server-only, never `NEXT_PUBLIC_*`) |
+| `DATABASE_URL` | prod pooled | staging pooled | branch pooled | Neon → Connection Details (**pooled**) |
+| `DATABASE_URL_UNPOOLED` | prod direct | staging direct | branch direct | Neon → Connection Details (**direct**; migrations) |
+| `NEON_AUTH_BASE_URL` | prod | staging | preview | Neon Auth setup |
+| `NEON_AUTH_COOKIE_SECRET` | prod | staging | preview | generated, ≥32 chars (server-only) |
 
-**Where to inspect:** Vercel dashboard → project → Settings → Environment Variables. Locally, `apps/web/.env.local`.
+**Where to inspect:** Vercel dashboard → project → Settings → Environment Variables. Locally, `apps/web/.env.local`. The Vercel↔Neon integration can set `DATABASE_URL*` automatically per environment.
 
 ### CI secrets / variables (GitHub repo)
 
@@ -95,7 +97,7 @@ Set at repository scope (Settings → Secrets and variables → Actions).
 | Name | Kind | Used by | Purpose |
 |---|---|---|---|
 | `RUN_CI` | **Variable** | All workflows | Kill-switch — set `false` to skip CI while over Actions quota; `true` to re-enable |
-| `SUPABASE_ACCESS_TOKEN` | Secret | migration steps | Supabase CLI auth in CI (if/when migrations run in CI) |
+| `DATABASE_URL_UNPOOLED` | Secret | migration steps | Neon direct connection for `drizzle-kit migrate` in CI (if/when migrations run in CI) |
 
 **To set or rotate a secret:**
 ```bash
@@ -113,36 +115,38 @@ gh variable set RUN_CI --body false --repo mrosmarin/consultant
 
 ## How the migration / schema pipeline works
 
+Migrations are **Drizzle** SQL files generated from `apps/web/src/db/schema.ts` and committed to `apps/web/drizzle/`.
+
 ### Local
 
 ```bash
-# Create a new migration
-supabase migration new <name>          # make db-migrate-new NAME=<name>
+# Generate a migration from schema changes
+pnpm --filter web db:generate          # make db-generate
 
-# Reset local DB (re-run all migrations + seed)
-supabase db reset                      # make db-reset
+# Apply pending migrations to the DATABASE_URL target
+pnpm --filter web db:migrate           # make db-migrate
 
-# Diff live local DB against migration set
-supabase db diff                       # make db-diff
+# Push schema directly to the DB (dev/prototyping only — no migration file)
+pnpm --filter web db:push              # make db-push
 ```
 
 ### PR flow
 
-1. Open PR → Vercel builds a preview.
+1. Open PR → Vercel builds a preview (optionally against a per-PR Neon branch).
 2. CI runs — lint, types, build, tests (when `RUN_CI=true`).
 3. Migrations are reviewed as committed SQL files; nothing is applied automatically on PRs by default.
 
 ### Staging (`develop`)
 
 1. Merge PR to `develop` → Vercel deploys staging.
-2. Apply migrations to the staging Supabase project: `supabase db push --project-ref <staging-ref>`.
+2. Apply migrations to the staging Neon branch: `drizzle-kit migrate` with the staging `DATABASE_URL_UNPOOLED`.
 
 ### Production (`main`)
 
 1. Open `develop` → `main` release PR.
 2. Merge → push to `main`.
 3. Vercel deploys production.
-4. Apply migrations to the production Supabase project: `supabase db push --project-ref <prod-ref>`.
+4. Apply migrations to the production Neon branch: `drizzle-kit migrate` with the prod `DATABASE_URL_UNPOOLED`.
 
 ---
 
@@ -173,8 +177,9 @@ supabase db diff                       # make db-diff
 1. **`gh secret set --body -` sets literal `"-"`.** Use stdin without `--body`, or `--body "$VALUE"` with the literal value.
 2. **Workflow-only changes don't trigger a Vercel redeploy.** Vercel only rebuilds when app files change. Use an empty commit (`git commit --allow-empty`) to force a redeploy after env-var-only changes.
 3. **Devcontainer rebuilds wipe temp files.** Don't store tokens or state in `/tmp` — use `.devcontainer/.env` (gitignored) or a mounted volume.
-4. **Port collisions in worktrees.** Each worktree's Next.js dev server needs a unique port — `make worktree-new` assigns one. Don't boot a second Supabase stack per worktree; share the one from the main checkout. See [WORKTREES.md](WORKTREES.md).
-5. **`SUPABASE_SERVICE_ROLE_KEY` is server-only.** Never expose it with a `NEXT_PUBLIC_` prefix — it bypasses RLS.
+4. **Port collisions in worktrees.** Each worktree's Next.js dev server needs a unique port — `make worktree-new` assigns one. The DB is Neon (cloud), so there's no local DB port to collide; point each worktree's `DATABASE_URL` at a Neon branch. See [WORKTREES.md](WORKTREES.md).
+5. **Server-only secrets.** `DATABASE_URL*` and `NEON_AUTH_COOKIE_SECRET` are server-only — never expose them with a `NEXT_PUBLIC_` prefix. Use the **pooled** `DATABASE_URL` in the app and the **unpooled** one for migrations.
+6. **Neon Auth is Beta + AWS-only.** Built on Better Auth 1.4.18; incompatible with Neon IP Allow / Private Networking. Re-evaluate before relying on it for sensitive portal data.
 
 ---
 
@@ -183,7 +188,8 @@ supabase db diff                       # make db-diff
 | Item | Plan | Monthly |
 |---|---|---|
 | Vercel | Hobby (free) to start | $0 |
-| Supabase | Free tier to start | $0 |
+| Neon | Free tier to start | $0 |
+| Neon Auth | Free up to 60K MAU | $0 |
 | GitHub Actions | Free minutes — **currently over quota** (resets ~June 2026) | $0 (CI gated off via `RUN_CI`) |
 
 ---

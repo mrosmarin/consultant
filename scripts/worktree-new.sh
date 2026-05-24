@@ -168,7 +168,7 @@ Next:
 Dev server (port is reserved for this worktree to avoid collisions):
   PORT=${WORKTREE_PORT} pnpm dev    # → http://localhost:${WORKTREE_PORT}
 
-Supabase: use the shared stack from the main checkout — do NOT run \`supabase start\` here.
+Database: Neon (cloud) — set DATABASE_URL in apps/web/.env.local; there is no local DB to start.
 
 Cleanup after the PR merges:
   git worktree remove ${REL_PATH}

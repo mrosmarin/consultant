@@ -17,7 +17,8 @@ I'm a senior software engineer building the **EndlessWorlds** website — the ma
 
 - **Monorepo** — pnpm workspaces + **Turborepo**. Web app lives at `apps/web`.
 - **Framework** — Next.js (App Router) + TypeScript, package manager **pnpm**.
-- **Database** — **Supabase** (Postgres). Local dev uses the **Supabase CLI** (`supabase start`) — one shared local stack on default ports (`54321` API / `54322` DB / `54323` Studio).
+- **Database** — **Neon** (serverless Postgres) via **Drizzle ORM**. Local dev connects to a Neon dev branch through `DATABASE_URL` (pooled) / `DATABASE_URL_UNPOOLED` (direct, for migrations).
+- **Auth** — **Neon Auth** (managed, built on Better Auth). Auth data lives in the `neon_auth` schema and is RLS-compatible.
 - **UI** — Tailwind v4 + shadcn/ui, with dark mode.
 - **Hosting** — **Vercel** via Git integration (branch → preview URL, `main` → production).
 - **Testing** — Vitest (unit/component) + Playwright (E2E).
@@ -69,8 +70,8 @@ Full PR process and commit-message conventions live in [CONTRIBUTING.md](CONTRIB
 
 ## Development Rules
 
-- **Schema changes** only via Supabase migration files committed to git — never via the dashboard UI
-- **Row-level security** on every database table — no exceptions
+- **Schema changes** only via Drizzle migrations committed to git (`drizzle-kit generate` → review SQL → `db:migrate`) — never ad-hoc in a dashboard
+- **Row-level security** on every database table — no exceptions (Neon Auth's `neon_auth` schema is RLS-compatible)
 - **Soft deletes** everywhere — no hard deletes via UI
 - **TDD** — tests before implementation where possible
 - **DRY** — shared components, never duplicated per screen
