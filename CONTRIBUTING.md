@@ -72,10 +72,9 @@ Every PR to `develop` or `main` runs the GitHub Actions pipeline:
 2. **Lint** — ESLint, zero-warning tolerance
 3. **Type check** — `tsc --noEmit` via `turbo check-types`
 4. **Build** — `turbo build` (production build)
-5. **Unit tests** — Vitest
-6. **E2E** (optional/nightly) — Playwright
+5. **Unit tests** — Vitest _(commented out until Vitest is wired)_
 
-> The workflow file lands with the app-scaffold ticket — it is not yet committed.
+> Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Runs `lint` → `check-types` → `build` via Turbo. The build job receives `NEON_AUTH_*` + `DATABASE_URL` from repo secrets (Neon Auth validates them at build time).
 
 ### Actions quota kill-switch (temporary)
 

@@ -96,8 +96,13 @@ Set at repository scope (Settings → Secrets and variables → Actions).
 
 | Name | Kind | Used by | Purpose |
 |---|---|---|---|
-| `RUN_CI` | **Variable** | All workflows | Kill-switch — set `false` to skip CI while over Actions quota; `true` to re-enable |
+| `RUN_CI` | **Variable** | All workflows | Kill-switch — set `false` to skip CI while over Actions quota; `true` to re-enable. **Currently `false`.** |
+| `NEON_AUTH_BASE_URL` | Secret | `ci.yml` build | Required at build time — Neon Auth validates it at module load |
+| `NEON_AUTH_COOKIE_SECRET` | Secret | `ci.yml` build | Required at build time (Neon Auth cookie secret) |
+| `DATABASE_URL` | Secret | `ci.yml` build | Neon pooled connection used during `next build` |
 | `DATABASE_URL_UNPOOLED` | Secret | migration steps | Neon direct connection for `drizzle-kit migrate` in CI (if/when migrations run in CI) |
+
+> The three build secrets must be set **before flipping `RUN_CI=true`**, or the build job fails on missing Neon Auth env. While `RUN_CI=false`, jobs skip and the secrets aren't needed.
 
 **To set or rotate a secret:**
 ```bash
