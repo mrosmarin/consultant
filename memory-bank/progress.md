@@ -14,6 +14,7 @@ _Last updated: 2026-05-24_
 - **Neon Auth (Better Auth) working** — sign-up/in/out, session, and `/account` route guard (`proxy.ts`) verified live against the real Neon DB (`neon_auth.user` row created). Own forms (no `auth-ui`). (DEV-85.)
 - **Tailwind v4 + shadcn/ui + dark mode** — PostCSS plugin, `@theme inline` slate tokens, `next-themes` toggle; auth/account/home restyled. Build/lint/types green; SSR renders shadcn components, compiled CSS has tokens + `.dark`. (DEV-86.)
 - **CI workflow** — `.github/workflows/ci.yml` (lint/check-types/build via Turbo) gated on `RUN_CI` (currently `false`). YAML validated. (DEV-87.)
+- **Live on Vercel** — production deploy at **https://endlessworlds-web.vercel.app** (project `endlessworlds-web`, team `worrier2warrior24-7073s-projects`); prod env vars set; home/sign-in 200, `/account` guard works. (DEV-88, manual CLI deploy.)
 
 ## What's left to build
 
@@ -23,8 +24,8 @@ _Last updated: 2026-05-24_
 - [x] Neon stack adopted: Drizzle + Neon Auth wired and verified end-to-end. _(DEV-85)_
 - [x] Tailwind v4 + shadcn/ui installed; dark mode working; auth/account/home restyled. _(DEV-86)_
 - [x] GitHub Actions workflow (gated on `RUN_CI`=false; build needs `NEON_AUTH_*` secrets when enabled). _(DEV-87)_
-- [ ] Vercel project connected (Git integration); Neon dev/staging/prod branches + per-env auth. _(DEV-88)_
-- [ ] Brand guidelines, information architecture, wireframes.
+- [~] Vercel: production deploy LIVE + env vars set. **Pending (user):** Git auto-deploy (GitHub App), preview env vars, Neon dev/staging/prod branches. _(DEV-88)_
+- [ ] Brand guidelines, information architecture, wireframes. _(DEV-89)_
 
 **M2/M3 — Public site, content, SEO**
 - [ ] Design system + component library.

@@ -17,6 +17,21 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 
 ---
 
+## Vercel project (current state — DEV-88)
+
+- **Project:** `endlessworlds-web` · **Team:** `worrier2warrior24-7073s-projects` (the Vercel MCP / token account).
+- **Live (production):** https://endlessworlds-web.vercel.app — first deploy via `vercel deploy --prod` from `apps/web`.
+- **Production env vars set** (Vercel project): `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`. All point at the single Neon DB (default branch) for now.
+
+**Still to do (user-gated, dashboard/OAuth):**
+1. **Git integration** — install the Vercel GitHub App on `mrosmarin/consultant` and connect it to this project so pushes auto-deploy (branch → preview, `main` → production). Set **Root Directory = `apps/web`** and **Production Branch = `main`** in project settings (the current deploys are manual CLI from `apps/web`).
+2. **Preview env vars** — re-add the four vars for the **Preview** environment (CLI prompts non-interactively; easiest in the dashboard). Needed once PR previews are on.
+3. **Neon branches** — separate dev/staging/prod via the Vercel↔Neon Marketplace integration (auto-sets `DATABASE_URL` per env + per-PR branches), or create branches in the Neon Console. Currently all envs share one DB.
+
+> Tokens: the account token lives in `.devcontainer/.env` as `VERCEL_TOKEN` (worrier2warrior24-7073 account). The Vercel MCP can deploy + read but cannot set env vars / project config — those need the CLI (token) or the dashboard.
+
+---
+
 ## Environments
 
 ### 1. Local (devcontainer)
