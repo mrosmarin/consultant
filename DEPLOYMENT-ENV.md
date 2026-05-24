@@ -8,12 +8,27 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 
 ## TL;DR
 
-| Git branch | Deploy target | Scope | Migration / schema application |
+| Git branch | Deploy target (Vercel) | Scope | Migration / schema application |
 |---|---|---|---|
-| `<PROD_BRANCH>` | Production | Production | Auto on push (or manual — see pipeline section) |
-| `<BASE_BRANCH>` | Staging | Preview / Staging | Auto on push |
-| `feature/<PREFIX>-XXX-*` PR | Preview | Preview | Auto on PR (if applicable) |
-| `localhost` | Local dev (devcontainer) | n/a | Manual (`migrate` / `db reset`) |
+| `main` | Production | Production | `drizzle-kit migrate` against the prod Neon branch |
+| `develop` | Preview (staging) | Preview | `drizzle-kit migrate` against the staging Neon branch |
+| `feature/dev-XXX-*` PR | Preview | Preview | optional per-PR Neon branch |
+| `localhost` | Local dev (devcontainer) | n/a | `make db-migrate` against a Neon dev branch |
+
+---
+
+## Vercel project (current state — DEV-88)
+
+- **Project:** `endlessworlds-web` · **Team:** `worrier2warrior24-7073s-projects` (the Vercel MCP / token account).
+- **Live (production):** https://endlessworlds-web.vercel.app — first deploy via `vercel deploy --prod` from `apps/web`.
+- **Production env vars set** (Vercel project): `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`. All point at the single Neon DB (default branch) for now.
+
+**Still to do (user-gated, dashboard/OAuth):**
+1. **Git integration** — install the Vercel GitHub App on `mrosmarin/consultant` and connect it to this project so pushes auto-deploy (branch → preview, `main` → production). Set **Root Directory = `apps/web`** and **Production Branch = `main`** in project settings (the current deploys are manual CLI from `apps/web`).
+2. **Preview env vars** — re-add the four vars for the **Preview** environment (CLI prompts non-interactively; easiest in the dashboard). Needed once PR previews are on.
+3. **Neon branches** — separate dev/staging/prod via the Vercel↔Neon Marketplace integration (auto-sets `DATABASE_URL` per env + per-PR branches), or create branches in the Neon Console. Currently all envs share one DB.
+
+> Tokens: the account token lives in `.devcontainer/.env` as `VERCEL_TOKEN` (worrier2warrior24-7073 account). The Vercel MCP can deploy + read but cannot set env vars / project config — those need the CLI (token) or the dashboard.
 
 ---
 
@@ -21,44 +36,42 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 
 ### 1. Local (devcontainer)
 
-**What:** All development runs inside a **devcontainer with VS Code and Docker-in-Docker**. Local services (database, cache, etc.) run as Docker containers inside the devcontainer.
+**What:** All development runs inside a **devcontainer with VS Code and Docker-in-Docker**. The database is **Neon** (serverless, cloud) — there is **no local DB container**. Local dev connects to a **Neon dev branch** over the network.
 
-**Where keys live:** `.env.local` (gitignored). Populated from the output of local service startup or from `.env.example`.
+**Where keys live:** `apps/web/.env.local` (gitignored). Copy `apps/web/.env.example` and fill `DATABASE_URL` / `DATABASE_URL_UNPOOLED` from the Neon dashboard (Connection Details) or the Vercel↔Neon integration.
 
 **Setup:**
 ```bash
 # VS Code will prompt to reopen in devcontainer, or:
 # Command Palette → "Dev Containers: Reopen in Container"
 
-# Then:
-<INSTALL_CMD>
-make up        # starts local services + dev servers
+pnpm install
+# set apps/web/.env.local (DATABASE_URL from a Neon dev branch)
+make dev       # dev server only — Neon is cloud, nothing local to boot
 ```
 
-**Ports:** Dev server defaults to `<DEV_PORT>`. Override with `PORT=XXXX` if running multiple worktrees concurrently.
+**Ports:** Next.js dev server defaults to `3000`. When running multiple worktrees concurrently, each worktree gets a per-worktree Next.js `PORT` (base `3000` + ticket offset) — assigned by `make worktree-new`. There is no local DB port to share; point each worktree's `DATABASE_URL` at a Neon branch (a shared dev branch, or its own). See [WORKTREES.md](WORKTREES.md).
 
 ### 2. Preview / PR
 
-**What:** When a PR is opened against `<BASE_BRANCH>`:
-- The deploy platform builds + deploys a preview URL automatically.
-- If the PR touches database schema files, a preview/ephemeral database instance may be created (depends on your database provider's branching support).
-- On merge: ephemeral resources auto-destroy.
+**What:** When a PR is opened against `develop`:
+- Vercel builds + deploys a preview URL automatically (Git integration).
+- The preview points at the **staging Neon branch**, or a **per-PR Neon branch** if configured (Neon branching pairs with Vercel previews).
+- On merge: the preview deployment is retained per Vercel's retention settings; an ephemeral Neon branch can be auto-deleted.
 
-<!-- Expand during bootstrap with your specific preview setup -->
-
-### 3. Staging (`<BASE_BRANCH>`)
+### 3. Staging (`develop`)
 
 **What:**
-- The `<BASE_BRANCH>` branch is the staging environment. All feature PRs target `<BASE_BRANCH>` first.
-- Pushes to `<BASE_BRANCH>` auto-deploy to the staging environment.
-- Schema changes are applied automatically (or via CI dry-run + manual apply — document your pattern).
+- The `develop` branch is the staging environment. All feature PRs target `develop` first.
+- Pushes to `develop` auto-deploy a Vercel preview/staging build.
+- Schema changes are applied to the **staging Neon branch** (`drizzle-kit migrate` with the staging `DATABASE_URL_UNPOOLED`).
 
-### 4. Production (`<PROD_BRANCH>`)
+### 4. Production (`main`)
 
 **What:**
-- The `<PROD_BRANCH>` branch is production. PRs require <APPROVALS_REQUIRED> approval(s) + CI green.
-- The deploy platform deploys on push to `<PROD_BRANCH>`.
-- Schema changes are applied automatically on push.
+- The `main` branch is production. PRs come only from `develop`. No required approvals (solo); CI green when enabled.
+- Vercel deploys production on push to `main`.
+- Schema changes are applied to the **production Neon branch** (`drizzle-kit migrate` with the prod `DATABASE_URL_UNPOOLED`).
 
 ---
 
@@ -66,42 +79,54 @@ make up        # starts local services + dev servers
 
 ### Local devcontainer env vars (gitignored)
 
-The devcontainer auto-loads env vars from `.devcontainer/.env` (or your configured path). These are inputs to CLI tooling and local development.
+The devcontainer auto-loads env vars from `.devcontainer/.env` (via `docker-compose.yml` `env_file`). These are inputs to CLI tooling and MCP servers — **not** app runtime vars.
 
 | Env var | Purpose | Source |
 |---|---|---|
-| <!-- Fill during bootstrap --> | | |
+| `LINEAR_API_KEY` | Linear MCP server auth | Linear → Settings → API → Personal API keys |
+| `CONTEXT7_TOKEN` | Context7 MCP docs lookups | context7.com account |
+| `GITHUB_TOKEN` | GitHub MCP / `gh` auth | GitHub → Developer settings → tokens |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub MCP (classic PAT) | GitHub → Developer settings → tokens |
+| `VERCEL_TOKEN` | Vercel MCP / CLI deploys | Vercel → Account Settings → Tokens |
 
 **Regeneration policy:**
 - API tokens: rotate every ~90 days or immediately if compromised.
-- Database passwords: rotate via provider dashboard if leaked.
-- Project IDs: never change unless a project is recreated.
+- Neon connection strings / Neon Auth secrets: rotate via the Neon dashboard if leaked.
+- Project IDs / branch names: never change unless a project/branch is recreated.
 
-### Deploy platform env vars (<DEPLOY_PLATFORM>)
+### App env vars (Vercel + local)
 
-<!-- Fill during bootstrap with your actual env var scopes and values -->
-
-Each deploy environment (production, staging, preview) carries its own set of env vars. Configure in the <DEPLOY_PLATFORM> dashboard or via CLI.
-
-| Var | Production | Staging | Preview | Source |
+| Var | Production | Staging (`develop`) | Preview | Source |
 |---|---|---|---|---|
-| `DATABASE_URL` | prod connection string | staging connection string | preview/ephemeral | Provider dashboard |
-| <!-- Add rows during bootstrap --> | | | | |
+| `DATABASE_URL` | prod pooled | staging pooled | branch pooled | Neon → Connection Details (**pooled**) |
+| `DATABASE_URL_UNPOOLED` | prod direct | staging direct | branch direct | Neon → Connection Details (**direct**; migrations) |
+| `NEON_AUTH_BASE_URL` | prod | staging | preview | Neon Auth setup |
+| `NEON_AUTH_COOKIE_SECRET` | prod | staging | preview | generated, ≥32 chars (server-only) |
 
-**Where to inspect:** <DEPLOY_PLATFORM> dashboard → project → Settings → Environment Variables.
+**Where to inspect:** Vercel dashboard → project → Settings → Environment Variables. Locally, `apps/web/.env.local`. The Vercel↔Neon integration can set `DATABASE_URL*` automatically per environment.
 
-### CI secrets (GitHub repo secrets)
+### CI secrets / variables (GitHub repo)
 
-Secrets used by GitHub Actions workflows. Set at repository scope (Settings → Secrets and variables → Actions).
+Set at repository scope (Settings → Secrets and variables → Actions).
 
-| Secret | Used by | Purpose |
-|---|---|---|
-| <!-- Fill during bootstrap --> | | |
+| Name | Kind | Used by | Purpose |
+|---|---|---|---|
+| `RUN_CI` | **Variable** | All workflows | Kill-switch — set `false` to skip CI while over Actions quota; `true` to re-enable. **Currently `false`.** |
+| `NEON_AUTH_BASE_URL` | Secret | `ci.yml` build | Required at build time — Neon Auth validates it at module load |
+| `NEON_AUTH_COOKIE_SECRET` | Secret | `ci.yml` build | Required at build time (Neon Auth cookie secret) |
+| `DATABASE_URL` | Secret | `ci.yml` build | Neon pooled connection used during `next build` |
+| `DATABASE_URL_UNPOOLED` | Secret | migration steps | Neon direct connection for `drizzle-kit migrate` in CI (if/when migrations run in CI) |
 
-**To set or rotate:**
+> The three build secrets must be set **before flipping `RUN_CI=true`**, or the build job fails on missing Neon Auth env. While `RUN_CI=false`, jobs skip and the secrets aren't needed.
+
+**To set or rotate a secret:**
 ```bash
 # Pipe value via stdin so it never appears in process listings
-printf '%s' "$VALUE" | gh secret set SECRET_NAME --repo <REPO_PATH>
+printf '%s' "$VALUE" | gh secret set SECRET_NAME --repo mrosmarin/consultant
+```
+**To set the kill-switch variable:**
+```bash
+gh variable set RUN_CI --body false --repo mrosmarin/consultant
 ```
 
 > ⚠️ **Gotcha:** `gh secret set NAME --body -` sets the literal string `"-"`, not stdin. Omit `--body` to read from stdin, or use `--body "$VALUE"` with the actual value.
@@ -110,51 +135,49 @@ printf '%s' "$VALUE" | gh secret set SECRET_NAME --repo <REPO_PATH>
 
 ## How the migration / schema pipeline works
 
+Migrations are **Drizzle** SQL files generated from `apps/web/src/db/schema.ts` and committed to `apps/web/drizzle/`.
+
 ### Local
 
 ```bash
-# Create a new migration
-<MIGRATION_NEW_CMD>
+# Generate a migration from schema changes
+pnpm --filter web db:generate          # make db-generate
 
-# Apply all migrations (reset local DB)
-<MIGRATION_APPLY_CMD>
+# Apply pending migrations to the DATABASE_URL target
+pnpm --filter web db:migrate           # make db-migrate
 
-# Diff live DB against migration set
-<MIGRATION_DIFF_CMD>
+# Push schema directly to the DB (dev/prototyping only — no migration file)
+pnpm --filter web db:push              # make db-push
 ```
-
-<!-- Fill during bootstrap with your actual database migration commands -->
 
 ### PR flow
 
-1. Open PR → deploy platform builds preview.
-2. If the PR adds/edits schema migration files, the database provider may create an ephemeral instance and apply migrations to it.
-3. CI runs — lint, types, build, tests.
-4. Merge PR → ephemeral resources auto-destroy.
+1. Open PR → Vercel builds a preview (optionally against a per-PR Neon branch).
+2. CI runs — lint, types, build, tests (when `RUN_CI=true`).
+3. Migrations are reviewed as committed SQL files; nothing is applied automatically on PRs by default.
 
-### Staging (`<BASE_BRANCH>`)
+### Staging (`develop`)
 
-1. Merge PR to `<BASE_BRANCH>` → push triggers deploy.
-2. CI/deploy pipeline applies schema changes to the staging database.
-3. Deploy platform deploys the staging environment.
+1. Merge PR to `develop` → Vercel deploys staging.
+2. Apply migrations to the staging Neon branch: `drizzle-kit migrate` with the staging `DATABASE_URL_UNPOOLED`.
 
-### Production (`<PROD_BRANCH>`)
+### Production (`main`)
 
-1. Open `<BASE_BRANCH>` → `<PROD_BRANCH>` release PR.
-2. Approve + merge → push to `<PROD_BRANCH>`.
-3. Deploy platform deploys to production.
-4. Schema changes are applied to the production database.
+1. Open `develop` → `main` release PR.
+2. Merge → push to `main`.
+3. Vercel deploys production.
+4. Apply migrations to the production Neon branch: `drizzle-kit migrate` with the prod `DATABASE_URL_UNPOOLED`.
 
 ---
 
 ## Adding a new env var
 
-1. **Decide the scope:** local-only, build-time public (e.g. `NEXT_PUBLIC_*`), or runtime server-only.
-2. **Add to `.env.example`** with a placeholder value + comment.
-3. **Add to your type definitions** if using typed env (e.g. `env.d.ts`, `schema.ts`).
-4. **Add to your local `.env.local`** with the real value.
-5. **Add to the deploy platform** — choose the right scope (production, staging, preview).
-6. **If it's a CI input:** `printf '%s' "$VALUE" | gh secret set NAME --repo <REPO_PATH>`.
+1. **Decide the scope:** local-only, build-time public (`NEXT_PUBLIC_*`), or runtime server-only.
+2. **Add to `apps/web/.env.example`** with a placeholder value + comment.
+3. **Add to typed env** if using typed env (e.g. `env.ts` / a zod schema).
+4. **Add to `apps/web/.env.local`** with the real value.
+5. **Add to Vercel** — choose the right scope (Production / Preview).
+6. **If it's a CI input:** `printf '%s' "$VALUE" | gh secret set NAME --repo mrosmarin/consultant`.
 
 ---
 
@@ -162,29 +185,32 @@ printf '%s' "$VALUE" | gh secret set SECRET_NAME --repo <REPO_PATH>
 
 1. Pipe value via stdin:
    ```bash
-   printf '%s' "$VALUE" | gh secret set NEW_SECRET_NAME --repo <REPO_PATH>
+   printf '%s' "$VALUE" | gh secret set NEW_SECRET_NAME --repo mrosmarin/consultant
    ```
 2. Reference in workflow YAML: `${{ secrets.NEW_SECRET_NAME }}`.
-3. List repo secrets: `gh secret list --repo <REPO_PATH>`.
+3. List repo secrets: `gh secret list --repo mrosmarin/consultant`.
 
 ---
 
 ## Known gotchas
 
-<!-- Fill during bootstrap. Common ones to consider: -->
-
 1. **`gh secret set --body -` sets literal `"-"`.** Use stdin without `--body`, or `--body "$VALUE"` with the literal value.
-2. **Workflow-only changes don't trigger a redeploy.** Deploy platforms only rebuild when app files change. Use an empty commit (`git commit --allow-empty`) to force a redeploy after env-var-only changes.
+2. **Workflow-only changes don't trigger a Vercel redeploy.** Vercel only rebuilds when app files change. Use an empty commit (`git commit --allow-empty`) to force a redeploy after env-var-only changes.
 3. **Devcontainer rebuilds wipe temp files.** Don't store tokens or state in `/tmp` — use `.devcontainer/.env` (gitignored) or a mounted volume.
-4. **Port collisions in worktrees.** Each worktree running a dev server needs a unique port. See [WORKTREES.md](WORKTREES.md).
+4. **Port collisions in worktrees.** Each worktree's Next.js dev server needs a unique port — `make worktree-new` assigns one. The DB is Neon (cloud), so there's no local DB port to collide; point each worktree's `DATABASE_URL` at a Neon branch. See [WORKTREES.md](WORKTREES.md).
+5. **Server-only secrets.** `DATABASE_URL*` and `NEON_AUTH_COOKIE_SECRET` are server-only — never expose them with a `NEXT_PUBLIC_` prefix. Use the **pooled** `DATABASE_URL` in the app and the **unpooled** one for migrations.
+6. **Neon Auth is Beta + AWS-only.** Built on Better Auth 1.4.18; incompatible with Neon IP Allow / Private Networking. Re-evaluate before relying on it for sensitive portal data.
 
 ---
 
 ## Cost summary
 
-| Item | Monthly |
-|---|---|
-| <!-- Fill during bootstrap --> | |
+| Item | Plan | Monthly |
+|---|---|---|
+| Vercel | Hobby (free) to start | $0 |
+| Neon | Free tier to start | $0 |
+| Neon Auth | Free up to 60K MAU | $0 |
+| GitHub Actions | Free minutes — **currently over quota** (resets ~June 2026) | $0 (CI gated off via `RUN_CI`) |
 
 ---
 

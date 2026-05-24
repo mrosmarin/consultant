@@ -9,13 +9,27 @@
 
 ## Who I Am
 
-I'm a senior software engineer working on the <PROJECT_NAME> MVP. I focus on the task at hand — writing clean, tested, production-grade code — while keeping the big picture in mind.
+I'm a senior software engineer building the **EndlessWorlds** website — the marketing/consulting web presence for EndlessWorlds, LLC. I focus on the task at hand — writing clean, tested, production-grade code — while keeping the big picture in mind. This is a solo build; Claude Code and Kilo Code are the AI collaborators.
+
+---
+
+## Tech Stack
+
+- **Monorepo** — pnpm workspaces + **Turborepo**. Web app lives at `apps/web`.
+- **Framework** — Next.js (App Router) + TypeScript, package manager **pnpm**.
+- **Database** — **Neon** (serverless Postgres) via **Drizzle ORM**. Local dev connects to a Neon dev branch through `DATABASE_URL` (pooled) / `DATABASE_URL_UNPOOLED` (direct, for migrations).
+- **Auth** — **Neon Auth** (managed, built on Better Auth). Auth data lives in the `neon_auth` schema and is RLS-compatible.
+- **UI** — Tailwind v4 + shadcn/ui, with dark mode.
+- **Hosting** — **Vercel** via Git integration (branch → preview URL, `main` → production).
+- **Testing** — Vitest (unit/component) + Playwright (E2E).
+
+For any library/framework/CLI question, fetch current docs via the **Context7 MCP** before answering (see Tooling below).
 
 ---
 
 ## Linear — Source of Truth
 
-Workspace: `<LINEAR_WORKSPACE>`
+Workspace: `Devopolis` · Team: `Devopolis` · Project: **EndlessWorlds Website build** · Ticket prefix: `DEV`
 
 Linear is the single source of truth for all tasks, requirements, and context. Every piece of work must have a corresponding ticket. When in doubt about scope, requirements, or priority — check Linear first.
 
@@ -25,29 +39,30 @@ Linear is the single source of truth for all tasks, requirements, and context. E
 
 The feature-branch workflow is active.
 
-**Workflow:** `feature/<PREFIX>-XXX-description` → PR to `<BASE_BRANCH>` → CI must pass → merge → PR `<BASE_BRANCH>` → `<PROD_BRANCH>` (<APPROVALS_REQUIRED> approval(s) required) → merge → production deploy.
+**Workflow:** `feature/dev-XXX-description` → PR to `develop` → CI must pass → merge → PR `develop` → `main` (no required approvals — solo, self-merge) → merge → production deploy (Vercel).
 
 **Hard rules:**
 
-- Every worktree must be on a `feature/<PREFIX>-XXX-description` branch — **never directly on `<BASE_BRANCH>` or `<PROD_BRANCH>`**.
-- If the current worktree is on `<BASE_BRANCH>` or `<PROD_BRANCH>`, stop and create/check out a feature branch before doing anything.
-- Branch names: lowercase + hyphens, always prefixed with the Linear ticket ID (e.g., `feature/<PREFIX>-127-add-auth-guard`).
-- `hotfix/<PREFIX>-XXX-description` for urgent production fixes; same flow, expedited review.
+- Every worktree must be on a `feature/dev-XXX-description` branch — **never directly on `develop` or `main`**.
+- If the current worktree is on `develop` or `main`, stop and create/check out a feature branch before doing anything.
+- Branch names: lowercase + hyphens, always prefixed with the (lowercased) Linear ticket ID (e.g., `feature/dev-127-add-auth-guard`). Linear IDs in prose stay uppercase (`DEV-127`); branch names and commit scopes use lowercase (`dev-127`).
+- `hotfix/dev-XXX-description` for urgent production fixes; same flow, expedited review.
+- This is a **private repo with no GitHub branch protection** — the workflow is enforced by convention, not by GitHub. Don't rely on server-side gates; follow the flow manually.
 
 Worktree commands (see [WORKTREES.md](WORKTREES.md) for the full flow):
 
 ```bash
-# Recommended: helper handles branch + env file copy
+# Recommended: helper handles branch + env file copy + per-worktree port
 make worktree-new TICKET=192 SLUG=my-feature
-# → .claude/worktrees/<PREFIX>-192-my-feature/  (gitignored)
-#   on branch feature/<PREFIX>-192-my-feature off origin/<BASE_BRANCH>
+# → .claude/worktrees/dev-192-my-feature/  (gitignored)
+#   on branch feature/dev-192-my-feature off origin/develop
 
 # Manual fallback
 git fetch origin
-git worktree add .claude/worktrees/<PREFIX>-XXX-slug -b feature/<PREFIX>-XXX-description origin/<BASE_BRANCH>
+git worktree add .claude/worktrees/dev-XXX-slug -b feature/dev-XXX-description origin/develop
 ```
 
-Do not use `claude --worktree` for PR-bound work — its auto-named `worktree-<name>` branches violate the `feature/<PREFIX>-XXX-*` naming convention.
+Do not use `claude --worktree` for PR-bound work — its auto-named `worktree-<name>` branches violate the `feature/dev-XXX-*` naming convention.
 
 Full PR process and commit-message conventions live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -55,12 +70,22 @@ Full PR process and commit-message conventions live in [CONTRIBUTING.md](CONTRIB
 
 ## Development Rules
 
-- **Schema changes** only via migration files committed to git — never a dashboard UI
-- **Row-level security** on every database table — no exceptions
+- **Schema changes** only via Drizzle migrations committed to git (`drizzle-kit generate` → review SQL → `db:migrate`) — never ad-hoc in a dashboard
+- **Row-level security** on every database table — no exceptions (Neon Auth's `neon_auth` schema is RLS-compatible)
 - **Soft deletes** everywhere — no hard deletes via UI
 - **TDD** — tests before implementation where possible
 - **DRY** — shared components, never duplicated per screen
 - **Audit trail** on all privileged actions
+
+---
+
+## CI — Actions Quota Kill-Switch (temporary)
+
+GitHub Actions usage is **over quota for this billing cycle** (resets ~June 2026). Until it resets:
+
+- CI is gated on a repo **variable `RUN_CI`** — set it to `false` to skip all workflow runs and stop burning minutes; flip back to `true` when the quota resets.
+- For one-off skips, include `[skip ci]` in the commit subject.
+- Because the repo has **no branch protection**, CI is never *required* to merge — so skipping it does not block the workflow. This is an explicitly authorized, time-boxed exception; re-enable CI once the quota resets.
 
 ---
 

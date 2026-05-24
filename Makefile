@@ -1,23 +1,20 @@
-# Makefile — <PROJECT_NAME>
+# Makefile — EndlessWorlds
 #
 # Run from the repo root. Targets cover local services, dev servers,
 # quality gates, and worktree management.
 #
 # Quick reference:
 #   make help               # list everything
-#   make up                 # start local services + dev server
-#   make down               # stop local services
+#   make up                 # run the dev server (Neon is cloud — nothing local to boot)
+#   make db-generate        # generate a Drizzle migration
 #   make ci                 # reproduce CI locally
 #   make claude-audit       # audit Claude Code permission settings
 
 SHELL := /bin/bash
 
 # ── Configuration ─────────────────────────────────────────────────────
-# Adjust these to match your project layout.
-APP_ROOT        := <APP_ROOT>
-# If monorepo with multiple apps, add per-app paths here:
-# APP_ONE       := $(APP_ROOT)/apps/app-one
-# APP_TWO       := $(APP_ROOT)/apps/app-two
+# pnpm + Turborepo monorepo. The web app lives at apps/web.
+WEB := apps/web
 # ──────────────────────────────────────────────────────────────────────
 
 .DEFAULT_GOAL := help
@@ -27,7 +24,7 @@ APP_ROOT        := <APP_ROOT>
 .PHONY: help
 help: ## Show this help
 	@echo ""
-	@echo "<PROJECT_NAME> — make targets"
+	@echo "EndlessWorlds — make targets"
 	@echo "──────────────────────────────────────"
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -37,97 +34,69 @@ help: ## Show this help
 
 .PHONY: install
 install: ## Install all dependencies
-	<INSTALL_CMD>
-
-.PHONY: install-hooks
-install-hooks: ## Re-install git hooks (Husky, lefthook, etc.)
-	# <INSTALL_HOOKS_CMD>  ← e.g. pnpm exec husky
+	pnpm install
 
 .PHONY: clean
 clean: ## Remove caches and build artifacts (keeps dependencies)
-	# <CLEAN_CMD>  ← e.g. find . -type d \( -name ".turbo" -o -name ".next" -o -name "dist" \) -prune -exec rm -rf {} +
+	find . -type d \( -name ".turbo" -o -name ".next" -o -name "dist" \) -prune -exec rm -rf {} +
 
 .PHONY: clean-all
 clean-all: ## Remove caches AND dependencies (forces full reinstall)
 	$(MAKE) clean
-	# <CLEAN_ALL_CMD>  ← e.g. find . -type d -name "node_modules" -prune -exec rm -rf {} +
+	find . -type d -name "node_modules" -prune -exec rm -rf {} +
 
 # ─── Local services ──────────────────────────────────────────────────
-# Adapt these targets to your database / Docker Compose / local infra.
-# For monorepos with per-app services, add per-app targets like:
-#   services-start-app-one, services-start-app-two, etc.
-
-.PHONY: services-start
-services-start: ## Start local services (database, cache, etc.)
-	# <SERVICES_START_CMD>  ← e.g. docker compose up -d
-	#                       ← e.g. cd apps/myapp && npx supabase start
-
-.PHONY: services-stop
-services-stop: ## Stop local services
-	# <SERVICES_STOP_CMD>  ← e.g. docker compose down
-
-.PHONY: services-status
-services-status: ## Show local service status
-	# <SERVICES_STATUS_CMD>  ← e.g. docker compose ps
-	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "(no containers running)"
-
-.PHONY: services-restart
-services-restart: ## Stop and restart local services
-	$(MAKE) services-stop
-	$(MAKE) services-start
+# The database is Neon (serverless, cloud) — there is no local stack to
+# start. Local dev connects to a Neon dev branch via DATABASE_URL in
+# apps/web/.env.local. See DEPLOYMENT-ENV.md.
 
 # ─── Dev servers ─────────────────────────────────────────────────────
 
 .PHONY: dev
-dev: ## Run dev server
-	<DEV_CMD>
-
-# For monorepos with multiple apps, add per-app targets:
-# .PHONY: dev-app-one
-# dev-app-one: ## Run dev server for app-one only (http://localhost:<DEV_PORT>)
-# 	cd $(APP_ROOT) && <PACKAGE_MANAGER> turbo dev --filter=app-one
+dev: ## Run the dev server (http://localhost:3000)
+	pnpm turbo dev
 
 # ─── Build / quality gates ───────────────────────────────────────────
 
 .PHONY: build
 build: ## Production build
-	# <BUILD_CMD>  ← e.g. cd $(APP_ROOT) && pnpm turbo build
+	pnpm turbo build
 
 .PHONY: check-types
 check-types: ## Static type check
-	# <CHECK_TYPES_CMD>  ← e.g. cd $(APP_ROOT) && pnpm turbo check-types
+	pnpm turbo check-types
 
 .PHONY: lint
 lint: ## Run linter
-	# <LINT_CMD>  ← e.g. cd $(APP_ROOT) && pnpm turbo lint
+	pnpm turbo lint
 
 .PHONY: format
 format: ## Auto-format all files
-	# <FORMAT_CMD>  ← e.g. pnpm exec prettier --write .
+	pnpm exec prettier --write .
 
 .PHONY: format-check
 format-check: ## Check formatting without writing
-	# <FORMAT_CHECK_CMD>  ← e.g. pnpm exec prettier --check .
+	pnpm exec prettier --check .
 
 .PHONY: test
-test: ## Run test suite
-	# <TEST_CMD>  ← e.g. cd $(APP_ROOT) && pnpm turbo test
+test: ## Run unit tests (Vitest)
+	pnpm turbo test
 
 .PHONY: test-watch
-test-watch: ## Run tests in watch mode
-	# <TEST_WATCH_CMD>  ← e.g. cd $(APP_ROOT) && pnpm turbo test:watch
+test-watch: ## Run unit tests in watch mode
+	pnpm --filter web test:watch
 
 .PHONY: test-coverage
-test-coverage: ## Run tests with coverage
-	# <TEST_COVERAGE_CMD>  ← e.g. cd $(APP_ROOT) && pnpm turbo test:coverage
+test-coverage: ## Run unit tests with coverage
+	pnpm --filter web test:coverage
 
 .PHONY: test-e2e
-test-e2e: ## Run E2E tests
-	# <TEST_E2E_CMD>  ← e.g. cd $(APP_ROOT) && pnpm test:e2e
+test-e2e: ## Run E2E tests (Playwright)
+	pnpm --filter web test:e2e
 
 .PHONY: audit
 audit: ## Dependency vulnerability audit
-	# <AUDIT_CMD>  ← e.g. pnpm audit --audit-level=high --prod
+	pnpm audit --audit-level=high --prod
 
 .PHONY: ci
 ci: ## Reproduce CI locally — full quality gate
@@ -143,21 +112,24 @@ ci: ## Reproduce CI locally — full quality gate
 	$(MAKE) test
 	@echo "✓ CI gate passed"
 
-# ─── Database / migrations ───────────────────────────────────────────
-# Adapt to your database tooling (Supabase, Prisma, Drizzle, etc.)
+# ─── Database / migrations (Drizzle + Neon) ──────────────────────────
+# Requires apps/web/.env.local with DATABASE_URL / DATABASE_URL_UNPOOLED.
 
-.PHONY: db-reset
-db-reset: ## Reset local database (re-run migrations + seed)
-	# <DB_RESET_CMD>  ← e.g. cd apps/myapp && npx supabase db reset
-	#                 ← e.g. npx prisma migrate reset
+.PHONY: db-generate
+db-generate: ## Generate a migration from schema changes
+	pnpm --filter web db:generate
 
 .PHONY: db-migrate
-db-migrate: ## Apply pending migrations
-	# <DB_MIGRATE_CMD>  ← e.g. npx prisma migrate deploy
+db-migrate: ## Apply pending migrations to the database
+	pnpm --filter web db:migrate
 
-.PHONY: db-seed
-db-seed: ## Seed database with dev data
-	# <DB_SEED_CMD>
+.PHONY: db-push
+db-push: ## Push schema directly to the DB (dev/prototyping only)
+	pnpm --filter web db:push
+
+.PHONY: db-studio
+db-studio: ## Open Drizzle Studio
+	pnpm --filter web db:studio
 
 # ─── Worktrees (parallel feature branches) ───────────────────────────
 
@@ -195,20 +167,14 @@ claude-audit-verbose: ## Verbose audit with raw transcript matches
 # ─── Daily shortcuts ─────────────────────────────────────────────────
 
 .PHONY: up
-up: ## Daily start: bring up local services + dev server
-	$(MAKE) services-start
+up: ## Daily start: run the dev server (DB is Neon/cloud — nothing local to boot)
 	$(MAKE) dev
 
 .PHONY: down
-down: ## Daily stop: stop local services (dev servers are foreground — Ctrl+C them)
-	$(MAKE) services-stop
-	@echo ""
-	@echo "Tip: dev servers run in the foreground — stop them with Ctrl+C in their terminal."
+down: ## Daily stop (dev servers are foreground — Ctrl+C them)
+	@echo "Dev servers run in the foreground — stop them with Ctrl+C in their terminal."
+	@echo "The database is Neon (cloud) — nothing local to stop."
 
 .PHONY: status
-status: ## Quick view: local services + git status
-	@echo "── Services ──"
-	@$(MAKE) -s services-status || true
-	@echo ""
-	@echo "── Git status ──"
+status: ## Quick view: git status
 	@git status --short

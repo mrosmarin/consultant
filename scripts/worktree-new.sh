@@ -6,22 +6,22 @@
 #   scripts/worktree-new.sh <ticket> <slug>
 #   scripts/worktree-new.sh 123 my-feature
 #
-# Creates a worktree at .claude/worktrees/<PREFIX>-<ticket>-<slug>/
+# Creates a worktree at .claude/worktrees/dev-<ticket>-<slug>/
 # (nested inside the repo, gitignored) on branch
-# feature/<PREFIX>-<ticket>-<slug> off origin/<BASE_BRANCH>, and copies
+# feature/dev-<ticket>-<slug> off origin/develop, and copies
 # gitignored files listed in .worktreeinclude so local services work
 # immediately.
 #
-# Branch naming convention requires feature/<PREFIX>-XXX-* names; this
+# Branch naming convention requires feature/dev-XXX-* names; this
 # script enforces that and is the canonical way to spin up a new
 # worktree in this repo. See WORKTREES.md.
 
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────
-# Change these two values to match your project.
-TICKET_PREFIX="<PREFIX>"        # e.g. "nob", "eng", "proj"
-BASE_BRANCH="<BASE_BRANCH>"    # e.g. "qa", "develop", "staging"
+TICKET_PREFIX="dev"            # Linear ticket prefix (lowercased for branches)
+BASE_BRANCH="develop"          # feature branches fork from origin/develop
+DEV_PORT_BASE=3000             # Next.js base port; worktree port = base + (ticket % 1000)
 # ──────────────────────────────────────────────────────────────────────
 
 if [[ $# -ne 2 ]]; then
@@ -62,6 +62,10 @@ REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 
 BRANCH="feature/${PREFIX_LOWER}-${TICKET}-${SLUG}"
 WORKTREE_DIR="${REPO_ROOT}/.claude/worktrees/${PREFIX_LOWER}-${TICKET}-${SLUG}"
+
+# Deterministic, non-conflicting Next.js dev port: base + (ticket % 1000)
+# 10# forces base-10 so tickets with leading zeros aren't read as octal.
+WORKTREE_PORT=$(( DEV_PORT_BASE + (10#${TICKET} % 1000) ))
 
 # Refuse if branch already exists locally
 if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/${BRANCH}"; then
@@ -120,6 +124,12 @@ if [[ -f "$INCLUDE_FILE" ]]; then
     for src in "${matches[@]}"; do
       # Get path relative to repo root
       rel="${src#${REPO_ROOT}/}"
+      # A non-glob literal (e.g. ".env.local") isn't removed by nullglob,
+      # so skip entries that don't actually exist instead of failing.
+      if [[ ! -e "$src" ]]; then
+        echo "    [skip] $rel (not present in main checkout)"
+        continue
+      fi
       dst="${WORKTREE_DIR}/${rel}"
       mkdir -p "$(dirname "$dst")"
       cp "$src" "$dst"
@@ -130,6 +140,20 @@ else
   echo "→ No .worktreeinclude found — skipping file copy"
 fi
 
+# Assign a non-conflicting Next.js dev port for this worktree.
+# If apps/web/.env.local exists, set/replace PORT in it; otherwise just report it.
+WEB_ENV="${WORKTREE_DIR}/apps/web/.env.local"
+if [[ -f "$WEB_ENV" ]]; then
+  if grep -q '^PORT=' "$WEB_ENV"; then
+    sed -i.bak "s/^PORT=.*/PORT=${WORKTREE_PORT}/" "$WEB_ENV" && rm -f "${WEB_ENV}.bak"
+  else
+    printf '\nPORT=%s\n' "$WORKTREE_PORT" >> "$WEB_ENV"
+  fi
+  echo "→ Set PORT=${WORKTREE_PORT} in apps/web/.env.local"
+else
+  echo "→ Assigned dev port ${WORKTREE_PORT} (apps/web/.env.local not present yet — use it manually)"
+fi
+
 REL_PATH=".claude/worktrees/${PREFIX_LOWER}-${TICKET}-${SLUG}"
 
 cat <<EOF
@@ -138,11 +162,13 @@ Worktree ready at ${REL_PATH}/
 
 Next:
   cd ${REL_PATH}
-  <INSTALL_CMD>                    # each worktree needs its own dependencies
+  pnpm install                      # each worktree needs its own dependencies
   claude                            # start Claude Code in the worktree
 
-Run dev on a non-default port if another worktree is already running:
-  PORT=<DEV_PORT>1 <DEV_CMD>
+Dev server (port is reserved for this worktree to avoid collisions):
+  PORT=${WORKTREE_PORT} pnpm dev    # → http://localhost:${WORKTREE_PORT}
+
+Database: Neon (cloud) — set DATABASE_URL in apps/web/.env.local; there is no local DB to start.
 
 Cleanup after the PR merges:
   git worktree remove ${REL_PATH}
