@@ -4,10 +4,11 @@ _Last updated: 2026-05-24_
 
 ## Current focus
 
-**DEV-86 — Tailwind v4 + shadcn/ui + dark mode done.** UI foundation is in place and the auth/account/home pages are restyled. Remaining M1: CI (DEV-87), Vercel + Neon branches (DEV-88), brand/IA (DEV-89).
+**DEV-87 — CI workflow added.** `.github/workflows/ci.yml` runs lint/check-types/build via Turbo, gated on the `RUN_CI` repo variable (currently `false` — quota). Remaining M1: Vercel + Neon branches (DEV-88), brand/IA (DEV-89).
 
 ## Recent changes
 
+- **DEV-87 (CI):** Added `.github/workflows/ci.yml` (pnpm via `pnpm/action-setup@v4`, Node 24, `actions/setup-node@v4` pnpm cache) running `pnpm turbo run lint check-types build` on PRs/pushes to `develop`/`main`. Job gated on `if: vars.RUN_CI != 'false'`; the build step gets `NEON_AUTH_BASE_URL`/`NEON_AUTH_COOKIE_SECRET`/`DATABASE_URL` from repo **secrets** (must be set before flipping `RUN_CI=true`). Set repo variable **`RUN_CI=false`** (Actions over quota). Test step commented out until Vitest is wired. `[skip ci]` works natively. YAML validated.
 - **DEV-86 (Tailwind v4 + shadcn/ui):** Tailwind v4 via the Next.js **PostCSS** plugin (`@tailwindcss/postcss`, `postcss.config.mjs`); `globals.css` uses the shadcn slate token set with `@theme inline` + `@custom-variant dark` (class strategy). shadcn (`components.json`, `config: ""`) with button/card/input/label/dropdown-menu. Dark mode via **next-themes** (`ThemeProvider` in layout, `suppressHydrationWarning`, `ModeToggle`). Restyled sign-in/up, `/account`, home (removed inline styles + `page.module.css`). Verified: build/lint/check-types green; SSR HTML renders shadcn components; compiled CSS has the tokens + `.dark` overrides. (No live browser screenshot — no browser installed — but the toggle machinery is wired.)
   - **Finding:** `next build` requires `NEON_AUTH_*` env present, because `createNeonAuth()` validates `cookies.secret` eagerly at module load (the `[...path]` route is evaluated during page-data collection). CI (DEV-87) and Vercel (DEV-88) must provide `NEON_AUTH_BASE_URL` + `NEON_AUTH_COOKIE_SECRET` at build time, or we make auth init lazy.
 - **DEV-85 (Neon Auth):** Enabled Neon Auth (`better_auth`) on the project's default branch via the Neon Console (Auth base URL `…neonauth.c-8.us-east-1.aws.neon.tech/neondb/auth`). Wired the SDK in `apps/web`: `src/lib/auth/{server,client}.ts`, catch-all `src/app/api/auth/[...path]/route.ts`, **`src/proxy.ts`** (Next 16's middleware) guarding `/account/*`, sign-in/up forms + server actions, and a protected `/account` page. **Verified live:** sign-up → 200 (created a row in `neon_auth.user`), `get-session` → 200, `/account` 307→`/auth/sign-in` unauthenticated and 200 with a session. Built our own forms (not `@neondatabase/auth-ui`, which has a Beta peer-dep mismatch). Env in gitignored `apps/web/.env.local`.
@@ -25,8 +26,8 @@ Two workstreams across 6 milestones (target 2026-08-31, priority Urgent): **Publ
 
 > All work below goes in a worktree feature branch (`make worktree-new TICKET=… SLUG=…`) → PR to `develop`. The bootstrap itself was the one-time exception, seeded directly onto `develop`.
 
-1. ~~Create `develop`~~ ✅. ~~Scaffold `apps/web`~~ ✅ (DEV-84). ~~Neon + Neon Auth~~ ✅ (DEV-85). ~~Tailwind v4 + shadcn + dark mode~~ ✅ (DEV-86).
-2. **DEV-87 — GitHub Actions workflow** gated on `RUN_CI` (note: build needs `NEON_AUTH_*` env — set as CI secrets/vars).
+1. ~~Create `develop`~~ ✅. ~~Scaffold `apps/web`~~ ✅ (DEV-84). ~~Neon + Neon Auth~~ ✅ (DEV-85). ~~Tailwind + shadcn + dark~~ ✅ (DEV-86). ~~CI workflow~~ ✅ (DEV-87, gated off).
+2. **DEV-88 — Vercel** + Git integration; provision Neon project/branches (dev/staging/prod). Also set the CI build secrets (`NEON_AUTH_*`, `DATABASE_URL`) here before enabling `RUN_CI`.
 5. **DEV-88 — Vercel** + Git integration; provision Neon project/branches (dev/staging/prod).
 6. **DEV-89 — Brand guidelines, IA, wireframes** — confirm direction with the user.
 

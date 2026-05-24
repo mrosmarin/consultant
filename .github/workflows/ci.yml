@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    # Kill-switch: set the repo variable RUN_CI=false to skip CI while GitHub
+    # Actions is over quota (see CONTRIBUTING.md). Unset/anything-else runs CI.
+    # Note: GitHub also natively skips runs when the head commit subject
+    # contains "[skip ci]".
+    if: ${{ vars.RUN_CI != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version from package.json "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm turbo run lint
+
+      - name: Type check
+        run: pnpm turbo run check-types
+
+      - name: Build
+        run: pnpm turbo run build
+        env:
+          # Neon Auth validates these at module load during `next build`,
+          # so the build needs them even though nothing runs at build time.
+          NEON_AUTH_BASE_URL: ${{ secrets.NEON_AUTH_BASE_URL }}
+          NEON_AUTH_COOKIE_SECRET: ${{ secrets.NEON_AUTH_COOKIE_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # - name: Test
+      #   run: pnpm turbo run test   # enable once Vitest is wired (no test script yet)
