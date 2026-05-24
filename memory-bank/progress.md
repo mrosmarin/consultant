@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-05-23_
+_Last updated: 2026-05-24_
 
 ## What works
 
@@ -8,14 +8,15 @@ _Last updated: 2026-05-23_
 - Agentic tooling checked in: skills (`.agents/skills/`, pinned in `skills-lock.json`) + MCP servers (`.mcp.json`). Tokens present in `.devcontainer/.env`.
 - Project docs hydrated and consistent: `CLAUDE.md`, `CONTRIBUTING.md`, `DEPLOYMENT-ENV.md`, `WORKTREES.md`, `README.md`, `Makefile`, `scripts/worktree-new.sh`, `.worktreeinclude`.
 - Memory bank initialized (this directory).
-- Worktree helper assigns non-conflicting dev ports.
+- Worktree helper assigns non-conflicting dev ports (cp bug fixed in DEV-84).
+- **pnpm + Turborepo monorepo + `apps/web` (Next.js 16.2.6)** — `pnpm install`, `make build`/`turbo build`, `lint`, `check-types` all pass; dev server boots on the worktree port and serves HTTP 200. (DEV-84, in PR.)
 
 ## What's left to build
 
 **M1 — Foundation & Planning (current, target 2026-06-06)**
-- [ ] `develop` branch created and pushed.
-- [ ] `apps/web` Next.js app scaffolded; Turborepo wired (`turbo.json`, `pnpm-workspace.yaml`, root `package.json`).
-- [ ] Supabase initialized (`supabase/`), local stack runs, `apps/web/.env.example` committed.
+- [x] `develop` branch created and pushed.
+- [x] `apps/web` Next.js app scaffolded; Turborepo wired (`turbo.json`, `pnpm-workspace.yaml`, root `package.json`). _(DEV-84, in PR)_
+- [ ] Supabase initialized (`supabase/`), local stack runs, `apps/web/.env.local` wired. _(DEV-85)_
 - [ ] Tailwind v4 + shadcn/ui installed; dark mode working.
 - [ ] GitHub Actions workflow (gated on `RUN_CI`).
 - [ ] Vercel project connected (Git integration); staging + prod Supabase project refs.

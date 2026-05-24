@@ -124,6 +124,12 @@ if [[ -f "$INCLUDE_FILE" ]]; then
     for src in "${matches[@]}"; do
       # Get path relative to repo root
       rel="${src#${REPO_ROOT}/}"
+      # A non-glob literal (e.g. ".env.local") isn't removed by nullglob,
+      # so skip entries that don't actually exist instead of failing.
+      if [[ ! -e "$src" ]]; then
+        echo "    [skip] $rel (not present in main checkout)"
+        continue
+      fi
       dst="${WORKTREE_DIR}/${rel}"
       mkdir -p "$(dirname "$dst")"
       cp "$src" "$dst"

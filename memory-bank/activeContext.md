@@ -1,18 +1,17 @@
 # Active Context
 
-_Last updated: 2026-05-23_
+_Last updated: 2026-05-24_
 
 ## Current focus
 
-Project bootstrap. Hydrated all scaffold docs (`CLAUDE.md`, `CONTRIBUTING.md`, `DEPLOYMENT-ENV.md`, `WORKTREES.md`, `README.md`, `Makefile`, `scripts/worktree-new.sh`, `.worktreeinclude`) with EndlessWorlds project specifics and initialized this memory bank.
+**DEV-84 — scaffold `apps/web` + Turborepo monorepo** (in a worktree off `develop`). The pnpm + Turborepo monorepo and the Next.js app are stood up and verified.
 
 ## Recent changes
 
-- Resolved all template placeholder tokens from the bootstrap interview.
-- Locked stack: Next.js + pnpm + Turborepo, Supabase (local CLI), Tailwind v4 + shadcn/ui, Vercel, Vitest + Playwright.
-- Branching: `feature/dev-XXX-*` → `develop` → `main`; private repo, no branch protection, solo (no required approvals).
-- Added per-worktree dev-port assignment to `worktree-new.sh` and a shared-Supabase-stack convention.
-- Documented the GitHub Actions quota kill-switch (`RUN_CI` repo variable) — Actions over quota until ~June 2026.
+- **DEV-84:** Created the pnpm + Turborepo monorepo (root `package.json`, `pnpm-workspace.yaml`, `turbo.json`, prettier, `.nvmrc`) and scaffolded `apps/web` via `create-next-app` — **Next.js 16.2.6 + React 19.2.4**, App Router, TS, ESLint, `src/`, `@/*` alias, **no Tailwind yet** (that's DEV-86). Added `check-types` script and `apps/web/.env.example`. Allowed native builds (`sharp`, `unrs-resolver`) at the workspace root; removed the stray `apps/web/pnpm-workspace.yaml`. Fixed a `cp` bug in `worktree-new.sh` (non-glob entries like `.env.local` now skipped if absent). Verified: `pnpm install`, `check-types`, `lint`, `build` (clean), and dev server on port 3084 → HTTP 200.
+- **Bootstrap (DEV-83):** Hydrated all scaffold docs; locked stack (Next.js + pnpm + Turborepo, Supabase local CLI, Tailwind v4 + shadcn/ui, Vercel, Vitest + Playwright); branching `feature/dev-XXX-*` → `develop` → `main` (private repo, no protection, solo); per-worktree dev-port + shared-Supabase convention; `RUN_CI` Actions-quota kill-switch (over quota until ~June 2026).
+
+> Note: `apps/web/CLAUDE.md`/`AGENTS.md` (from create-next-app) warn that **Next.js 16 has breaking changes vs. older docs** — consult `node_modules/next/dist/docs/` before writing Next.js code.
 
 ## Project scope (per Linear — source of truth)
 
@@ -22,13 +21,12 @@ Two workstreams across 6 milestones (target 2026-08-31, priority Urgent): **Publ
 
 > All work below goes in a worktree feature branch (`make worktree-new TICKET=… SLUG=…`) → PR to `develop`. The bootstrap itself was the one-time exception, seeded directly onto `develop`.
 
-1. **Create the `develop` branch** off `main` and push it (base for all feature work — done as part of bootstrap).
-2. **Scaffold `apps/web`** (Next.js App Router + TS) and wire Turborepo (`turbo.json`, root `package.json`, `pnpm-workspace.yaml`). First `DEV` ticket.
-3. **Set up Supabase** (`supabase init`, local stack, `apps/web/.env.example`).
-4. **Tailwind v4 + shadcn/ui** install + dark mode (tailwind-theme-builder skill).
-5. **Add the GitHub Actions workflow** gated on `RUN_CI`.
-6. **Vercel** project + Git integration; create staging/prod Supabase projects.
-7. **Brand guidelines, IA, wireframes** — confirm direction with the user.
+1. ~~Create `develop`~~ ✅ (bootstrap). ~~Scaffold `apps/web` + Turborepo~~ ✅ (DEV-84, in PR).
+2. **DEV-85 — Set up Supabase** (`supabase init`, local stack, wire `.env.local`, `@supabase/ssr`).
+3. **DEV-86 — Tailwind v4 + shadcn/ui** install + dark mode (tailwind-theme-builder skill).
+4. **DEV-87 — GitHub Actions workflow** gated on `RUN_CI`.
+5. **DEV-88 — Vercel** project + Git integration; create staging/prod Supabase projects.
+6. **DEV-89 — Brand guidelines, IA, wireframes** — confirm direction with the user.
 
 ## Open questions / decisions pending
 
