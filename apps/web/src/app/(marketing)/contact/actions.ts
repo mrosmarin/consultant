@@ -1,7 +1,5 @@
 "use server";
 
-import { track } from "@vercel/analytics/server";
-
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 
@@ -27,8 +25,6 @@ export async function submitLead(
 
   try {
     await db.insert(leads).values({ name, email, company, message });
-    // Conversion event — no PII, just whether a company was provided.
-    await track("contact_lead", { hasCompany: company !== null });
     return { ok: true };
   } catch {
     return {

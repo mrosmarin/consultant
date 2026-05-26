@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M3 — Content/SEO/Analytics): foundation + public marketing site + full secure portal (auth, dashboard, **timesheets**, **invoicing**) are live in production. SEO (Metadata API, JSON-LD, `sitemap.xml`, `robots.txt`, OG image — DEV-65) is live; **Vercel Web Analytics** + a lead conversion event are wired (DEV-67). **Live:** https://endlessworlds-web.vercel.app. Next: copy polish, insights/blog. Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
+> Status (M3 — Content/SEO/Analytics): foundation + public marketing site + full secure portal (auth, dashboard, **timesheets**, **invoicing**) are live in production. SEO (Metadata API, JSON-LD, `sitemap.xml`, `robots.txt`, OG image — DEV-65) is live; **Google Analytics 4** is wired behind a cookie-consent banner (DEV-67) — set `NEXT_PUBLIC_GA_ID` to activate. **Live:** https://endlessworlds-web.vercel.app. Next: copy polish, insights/blog. Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
 
 ## Stack
 
@@ -46,6 +46,8 @@ All development runs inside a **devcontainer** (VS Code + Docker-in-Docker).
 pnpm install        # or: make install
 
 # 3. Set apps/web/.env.local (copy from .env.example; fill DATABASE_URL from Neon)
+#    Optional: NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX enables Google Analytics 4
+#    (loads only after the cookie-consent banner is accepted).
 
 # 4. Start the dev server
 make dev            # → http://localhost:3000

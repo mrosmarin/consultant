@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
+import { sendGAEvent } from "@next/third-parties/google";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,11 @@ import { submitLead } from "./actions";
 
 export function ContactForm() {
   const [state, formAction, pending] = useActionState(submitLead, null);
+
+  // Conversion event — no-op unless GA4 is loaded (i.e. analytics consent granted).
+  useEffect(() => {
+    if (state?.ok) sendGAEvent("event", "contact_lead");
+  }, [state?.ok]);
 
   if (state?.ok) {
     return (
