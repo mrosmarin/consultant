@@ -20,7 +20,8 @@ _Last updated: 2026-05-26_
 - **Secure portal shell + dashboard (M4)** — `app/account/layout.tsx` (sidebar nav + header: email, theme toggle, sign out), `/account` dashboard cards + quick actions, stubbed timesheets/invoices. Session re-checked; guard intact. (DEV-95.)
 - **Timesheets module (M5)** — `time_entries` table (Drizzle) with **RLS enabled** + `time_entries_all` policy; migration `0001_*` applied to Neon. Add/soft-delete server actions scoped to the session user; `/account/timesheets` form + entry list; dashboard "Hours this week" wired to the live `sum(hours)`. Build/lint/types green; dev server boots; guard verified; live Neon round-trip verified (insert→query→sum→cleanup). (DEV-96.)
 - **Invoicing module (M5)** — `invoices` table (Drizzle) with **RLS enabled** + `invoices_all` policy; migration `0002_*` applied to Neon. Create/status-update/soft-delete server actions scoped to the session user; `/account/invoices` create form + list with status badges (`draft|sent|paid|overdue`); dashboard "Open invoices" wired to the live count (status ≠ paid, not deleted). Build/lint/types green; dev boots; guard verified; live Neon lifecycle round-trip verified (insert→paid→sent→delete→cleanup). PDF/email (DEV-76) + Stripe (DEV-77) deferred. (DEV-97.)
-- **SEO foundation (M3)** — Next 16 Metadata API: root title template + `metadataBase` + OG/Twitter defaults + robots; per-page metadata + canonicals; JSON-LD `@graph` (Organization+ProfessionalService/Person/WebSite); `sitemap.ts` + `robots.ts`; branded `opengraph-image` via `next/og`. Site origin via `NEXT_PUBLIC_SITE_URL` (`src/lib/site.ts`). Gates green; sitemap/robots/OG verified on dev. (DEV-65.)
+- **SEO foundation (M3)** — Next 16 Metadata API: root title template + `metadataBase` + OG/Twitter defaults + robots; per-page metadata + canonicals; JSON-LD `@graph` (Organization+ProfessionalService/Person/WebSite); `sitemap.ts` + `robots.ts`; branded `opengraph-image` via `next/og`. Site origin via `NEXT_PUBLIC_SITE_URL` (`src/lib/site.ts`). Gates green; sitemap/robots/OG verified on dev — **shipped to prod** (PR #21). (DEV-65.)
+- **Analytics (M3)** — Vercel Web Analytics (cookieless; no consent banner). `<Analytics />` in root layout + server-side `track("contact_lead")` (no PII) on lead insert. Web Analytics enabled on the project. GA4 not used; CWV/Speed Insights → DEV-80. (DEV-67.)
 
 ## What's left to build
 
@@ -37,8 +38,9 @@ _Last updated: 2026-05-26_
 - [x] Design system + component library. _(DEV-86/90)_
 - [x] Public pages: Home, Services, About, Case studies, Contact. _(DEV-90–94)_ Insights still a stub.
 - [x] Lead-capture / contact form → Neon (Drizzle, with RLS). _(DEV-94)_
-- [x] SEO: meta/OG/Twitter, canonicals, JSON-LD, sitemap, robots, OG image. _(DEV-65)_
-- [ ] Copywriting polish (DEV-63/64), analytics (DEV-67 → Vercel Web Analytics), insights/blog (DEV-59/66), perf/CWV (DEV-80).
+- [x] SEO: meta/OG/Twitter, canonicals, JSON-LD, sitemap, robots, OG image. _(DEV-65, shipped to prod)_
+- [x] Analytics: Vercel Web Analytics + lead conversion event. _(DEV-67)_
+- [ ] Copywriting polish (DEV-63/64), insights/blog (DEV-59/66), perf/CWV (DEV-80).
 
 **M4/M5 — Secure portal**
 - [x] Auth + protected routes (Neon Auth + `proxy.ts` guard). _(DEV-85)_ RBAC roles still future.
@@ -53,7 +55,7 @@ _Last updated: 2026-05-26_
 
 ## Current status
 
-**M3 — Content/SEO/Analytics (in progress).** M1/M2 + full portal (M4/M5) live in production; `develop` == `main`. SEO foundation (DEV-65) built + verified, closing into `develop`. Remaining M3: analytics (DEV-67 → Vercel Web Analytics), copy polish (DEV-63/64), insights/blog (DEV-59/66). Other open work: utilities showcase (DEV-71), RBAC roles (DEV-69), M6 launch/QA, and a real test suite (no automated coverage yet).
+**M3 — Content/SEO/Analytics (in progress).** M1/M2 + full portal (M4/M5) live in production. SEO (DEV-65) shipped to prod; Analytics (DEV-67 — Vercel Web Analytics) built + verified, closing into `develop`. Remaining M3: copy polish (DEV-63/64), insights/blog (DEV-59/66). Other open work: utilities showcase (DEV-71), RBAC roles (DEV-69), M6 launch/QA, and a real test suite (no automated coverage yet).
 
 ## Known issues
 
