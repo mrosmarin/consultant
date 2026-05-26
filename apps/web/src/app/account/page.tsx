@@ -1,39 +1,58 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 
-import { ModeToggle } from "@/components/mode-toggle";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth/server";
 
-import { SignOutButton } from "./sign-out-button";
-
-// Protected portal entry. proxy.ts also guards /account/*, but we re-check
-// here and use the session for rendering.
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage() {
+export default async function DashboardPage() {
   const { data: session } = await auth.getSession();
-
-  if (!session?.user) {
-    redirect("/auth/sign-in");
-  }
+  const name = session?.user?.name || session?.user?.email || "there";
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground text-sm">Welcome back, {name}.</p>
       </div>
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-          <CardDescription>Your EndlessWorlds portal.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="text-sm">
-            Signed in as <strong>{session.user.email}</strong>
-          </p>
-          <SignOutButton />
-        </CardContent>
-      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Hours this week
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="font-mono text-3xl font-semibold">0</span>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Open invoices
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="font-mono text-3xl font-semibold">0</span>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button asChild>
+          <Link href="/account/timesheets">
+            <Plus className="size-4" /> Log time
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/account/invoices">
+            <Plus className="size-4" /> New invoice
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
