@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Work — EndlessWorlds",
+  title: "Work",
   description:
     "Selected engagements across Finance, Media, and Technology — GenAI platforms, cloud migrations, and analytics at scale.",
+  alternates: { canonical: "/work" },
 };
 
 const CASES = [

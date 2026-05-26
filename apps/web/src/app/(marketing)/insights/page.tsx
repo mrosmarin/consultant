@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Insights — EndlessWorlds" };
+export const metadata: Metadata = {
+  title: "Insights",
+  description:
+    "Notes on AI orchestration in production, cloud-native architecture, legacy modernization, and engineering leadership.",
+  alternates: { canonical: "/insights" },
+};
 
 export default function InsightsPage() {
   return (
