@@ -5,9 +5,10 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "About — EndlessWorlds",
+  title: "About",
   description:
     "A 30-year software leader and hands-on architect across Finance, Media, and Technology.",
+  alternates: { canonical: "/about" },
 };
 
 const EXPERIENCE = [

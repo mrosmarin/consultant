@@ -5,9 +5,10 @@ import { ArrowRight, Compass, Sparkles, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Services — EndlessWorlds",
+  title: "Services",
   description:
-    "Fractional engineering leadership, AI-native & cloud architecture, and legacy modernization.",
+    "Fractional engineering leadership, AI-native & cloud architecture, and legacy modernization — a senior engineering leader on demand.",
+  alternates: { canonical: "/services" },
 };
 
 const SERVICES = [

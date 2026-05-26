@@ -14,12 +14,13 @@ _Last updated: 2026-05-26_
 - **Neon Auth (Better Auth) working** — sign-up/in/out, session, and `/account` route guard (`proxy.ts`) verified live against the real Neon DB (`neon_auth.user` row created). Own forms (no `auth-ui`). (DEV-85.)
 - **Tailwind v4 + shadcn/ui + dark mode** — PostCSS plugin, `@theme inline` slate tokens, `next-themes` toggle; auth/account/home restyled. Build/lint/types green; SSR renders shadcn components, compiled CSS has tokens + `.dark`. (DEV-86.)
 - **CI workflow** — `.github/workflows/ci.yml` (lint/check-types/build via Turbo) gated on `RUN_CI` (currently `false`). YAML validated. (DEV-87.)
-- **Live on Vercel** — production deploy at **https://endlessworlds-web.vercel.app**; Git-integrated (`main`→prod, Root Directory `apps/web`, Build Command `next build`); prod + preview env vars set. (DEV-88.)
+- **Live on Vercel** — production deploy at **https://endlessworlds-web.vercel.app**; Git-integrated (`main`→prod, Root Directory `apps/web`, Build Command `next build`). **Neon env isolation done:** Preview deploys use a separate Neon `preview` branch (production untouched; isolation proven). Full portal (M4+M5) promoted to prod via PR #18. (DEV-88, Done.)
 - **Brand/IA captured** — `docs/brand-and-ia.md` (DEV-89). **Public site (M2)** — `(marketing)` layout (header/footer), navy/azure theme tokens, **Home** (DEV-90), **Services** (DEV-91), **About** (DEV-92), **Work** (DEV-93: 5 named case studies), **Contact** (DEV-94: lead form → Neon). Insights still a stub. All routes render; build/lint/types green.
 - **First app table + migration** — `leads` (Drizzle) with **RLS enabled** + public-insert policy; migration `0000_*` applied to Neon. Contact form insert verified live (row created + cleaned up). (DEV-94.)
 - **Secure portal shell + dashboard (M4)** — `app/account/layout.tsx` (sidebar nav + header: email, theme toggle, sign out), `/account` dashboard cards + quick actions, stubbed timesheets/invoices. Session re-checked; guard intact. (DEV-95.)
 - **Timesheets module (M5)** — `time_entries` table (Drizzle) with **RLS enabled** + `time_entries_all` policy; migration `0001_*` applied to Neon. Add/soft-delete server actions scoped to the session user; `/account/timesheets` form + entry list; dashboard "Hours this week" wired to the live `sum(hours)`. Build/lint/types green; dev server boots; guard verified; live Neon round-trip verified (insert→query→sum→cleanup). (DEV-96.)
 - **Invoicing module (M5)** — `invoices` table (Drizzle) with **RLS enabled** + `invoices_all` policy; migration `0002_*` applied to Neon. Create/status-update/soft-delete server actions scoped to the session user; `/account/invoices` create form + list with status badges (`draft|sent|paid|overdue`); dashboard "Open invoices" wired to the live count (status ≠ paid, not deleted). Build/lint/types green; dev boots; guard verified; live Neon lifecycle round-trip verified (insert→paid→sent→delete→cleanup). PDF/email (DEV-76) + Stripe (DEV-77) deferred. (DEV-97.)
+- **SEO foundation (M3)** — Next 16 Metadata API: root title template + `metadataBase` + OG/Twitter defaults + robots; per-page metadata + canonicals; JSON-LD `@graph` (Organization+ProfessionalService/Person/WebSite); `sitemap.ts` + `robots.ts`; branded `opengraph-image` via `next/og`. Site origin via `NEXT_PUBLIC_SITE_URL` (`src/lib/site.ts`). Gates green; sitemap/robots/OG verified on dev. (DEV-65.)
 
 ## What's left to build
 
@@ -33,10 +34,11 @@ _Last updated: 2026-05-26_
 - [ ] Brand guidelines, information architecture, wireframes. _(DEV-89)_
 
 **M2/M3 — Public site, content, SEO**
-- [ ] Design system + component library.
-- [ ] Public pages: Home, Services, About, Insights/blog, Case studies, Contact.
-- [ ] Lead-capture / contact form → Neon (Drizzle, with RLS).
-- [ ] Copywriting, SEO/meta/structured data, analytics, perf.
+- [x] Design system + component library. _(DEV-86/90)_
+- [x] Public pages: Home, Services, About, Case studies, Contact. _(DEV-90–94)_ Insights still a stub.
+- [x] Lead-capture / contact form → Neon (Drizzle, with RLS). _(DEV-94)_
+- [x] SEO: meta/OG/Twitter, canonicals, JSON-LD, sitemap, robots, OG image. _(DEV-65)_
+- [ ] Copywriting polish (DEV-63/64), analytics (DEV-67 → Vercel Web Analytics), insights/blog (DEV-59/66), perf/CWV (DEV-80).
 
 **M4/M5 — Secure portal**
 - [x] Auth + protected routes (Neon Auth + `proxy.ts` guard). _(DEV-85)_ RBAC roles still future.
@@ -51,7 +53,7 @@ _Last updated: 2026-05-26_
 
 ## Current status
 
-**M5 — Utilities (MVP complete).** Foundation (M1) + public site (M2) shipped to production; portal shell + dashboard (M4), Timesheets (DEV-96), and Invoicing (DEV-97) all landed on `develop`. M5 MVP done bar the deferred PDF/email (DEV-76) + Stripe (DEV-77). Next candidates: promote `develop`→`main` (ship M4/M5), project/utilities showcase, or M3 SEO/analytics.
+**M3 — Content/SEO/Analytics (in progress).** M1/M2 + full portal (M4/M5) live in production; `develop` == `main`. SEO foundation (DEV-65) built + verified, closing into `develop`. Remaining M3: analytics (DEV-67 → Vercel Web Analytics), copy polish (DEV-63/64), insights/blog (DEV-59/66). Other open work: utilities showcase (DEV-71), RBAC roles (DEV-69), M6 launch/QA, and a real test suite (no automated coverage yet).
 
 ## Known issues
 
