@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
-  title: "Contact — EndlessWorlds",
-  description: "Tell me about your team and what you're building.",
+  title: "Contact",
+  description: "Tell me about your team and what you're building. Replies within one business day.",
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {
