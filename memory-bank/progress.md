@@ -15,7 +15,8 @@ _Last updated: 2026-05-24_
 - **Tailwind v4 + shadcn/ui + dark mode** — PostCSS plugin, `@theme inline` slate tokens, `next-themes` toggle; auth/account/home restyled. Build/lint/types green; SSR renders shadcn components, compiled CSS has tokens + `.dark`. (DEV-86.)
 - **CI workflow** — `.github/workflows/ci.yml` (lint/check-types/build via Turbo) gated on `RUN_CI` (currently `false`). YAML validated. (DEV-87.)
 - **Live on Vercel** — production deploy at **https://endlessworlds-web.vercel.app**; Git-integrated (`main`→prod, Root Directory `apps/web`, Build Command `next build`); prod + preview env vars set. (DEV-88.)
-- **Brand/IA captured** — `docs/brand-and-ia.md` (DEV-89). **Public site (M2)** — `(marketing)` layout (header/footer), navy/azure theme tokens, **Home** (DEV-90), **Services** (DEV-91), **About** (DEV-92: bio + experience timeline + expertise + education); Work/Insights/Contact still stubs. All routes render; build/lint/types green.
+- **Brand/IA captured** — `docs/brand-and-ia.md` (DEV-89). **Public site (M2)** — `(marketing)` layout (header/footer), navy/azure theme tokens, **Home** (DEV-90), **Services** (DEV-91), **About** (DEV-92), **Work** (DEV-93: 5 named case studies), **Contact** (DEV-94: lead form → Neon). Insights still a stub. All routes render; build/lint/types green.
+- **First app table + migration** — `leads` (Drizzle) with **RLS enabled** + public-insert policy; migration `0000_*` applied to Neon. Contact form insert verified live (row created + cleaned up). (DEV-94.)
 
 ## What's left to build
 
