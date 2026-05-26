@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M1 — Foundation): monorepo + `apps/web` (Next.js 16), Neon + Drizzle + Neon Auth, Tailwind v4 + shadcn/ui + dark mode, CI workflow — all in. **Live:** https://endlessworlds-web.vercel.app. Remaining: Vercel Git auto-deploy + Neon per-env branches (DEV-88), brand/IA (DEV-89).
+> Status (M5 — Utilities): foundation + public marketing site shipped; secure portal underway — Neon Auth login/guard, portal shell + dashboard, and the **timesheets** module (log/list hours, soft-delete, dashboard "Hours this week") are in. **Live:** https://endlessworlds-web.vercel.app. Next: invoicing (DEV-97).
 
 ## Stack
 
