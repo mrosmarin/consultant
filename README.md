@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M5 — Utilities): foundation + public marketing site shipped; secure portal underway — Neon Auth login/guard, portal shell + dashboard, and the **timesheets** module (log/list hours, soft-delete, dashboard "Hours this week") are in. **Live:** https://endlessworlds-web.vercel.app. Next: invoicing (DEV-97).
+> Status (M5 — Utilities, MVP complete): foundation + public marketing site shipped; secure portal in — Neon Auth login/guard, portal shell + dashboard, **timesheets** (log/list hours, dashboard "Hours this week") and **invoicing** (create/list with status badges, dashboard "Open invoices"). **Live:** https://endlessworlds-web.vercel.app. Deferred: invoice PDF/email (DEV-76), Stripe payments (DEV-77).
 
 ## Stack
 

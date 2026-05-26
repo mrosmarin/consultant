@@ -25,3 +25,23 @@ export const timeEntries = pgTable("time_entries", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
+
+export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+// Portal invoicing. Same ownership model as time_entries (app-side scoping +
+// RLS backstop). status is a free-text column constrained to INVOICE_STATUSES
+// app-side. PDF/email (DEV-76) and Stripe payments (DEV-77) are out of scope.
+export const invoices = pgTable("invoices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  invoiceNumber: text("invoice_number").notNull(),
+  client: text("client").notNull(),
+  issueDate: date("issue_date").notNull(),
+  dueDate: date("due_date").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("draft"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
