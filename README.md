@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M3 — Content/SEO/Analytics): foundation + public marketing site + full secure portal (auth, dashboard, **timesheets**, **invoicing**) are live in production. Now layering on SEO — Metadata API (titles/OG/Twitter/canonicals), JSON-LD, `sitemap.xml`, `robots.txt`, branded OG image (DEV-65). **Live:** https://endlessworlds-web.vercel.app. Next: analytics (Vercel Web Analytics), copy polish, insights/blog. Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
+> Status (M3 — Content/SEO/Analytics): foundation + public marketing site + full secure portal (auth, dashboard, **timesheets**, **invoicing**) are live in production. SEO (Metadata API, JSON-LD, `sitemap.xml`, `robots.txt`, OG image — DEV-65) is live; **Vercel Web Analytics** + a lead conversion event are wired (DEV-67). **Live:** https://endlessworlds-web.vercel.app. Next: copy polish, insights/blog. Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
 
 ## Stack
 
