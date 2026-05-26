@@ -1,39 +1,97 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Plus } from "lucide-react";
+import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
-import { ModeToggle } from "@/components/mode-toggle";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { db } from "@/db";
+import { invoices, timeEntries } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
-import { SignOutButton } from "./sign-out-button";
-
-// Protected portal entry. proxy.ts also guards /account/*, but we re-check
-// here and use the session for rendering.
 export const dynamic = "force-dynamic";
 
-export default async function AccountPage() {
-  const { data: session } = await auth.getSession();
+function weekStartISO() {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun..6=Sat
+  const sinceMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - sinceMonday),
+  );
+  return monday.toISOString().slice(0, 10);
+}
 
-  if (!session?.user) {
-    redirect("/auth/sign-in");
-  }
+export default async function DashboardPage() {
+  const { data: session } = await auth.getSession();
+  if (!session?.user) redirect("/auth/sign-in");
+  const name = session.user.name || session.user.email || "there";
+
+  const [agg] = await db
+    .select({ total: sql<string>`coalesce(sum(${timeEntries.hours}), 0)` })
+    .from(timeEntries)
+    .where(
+      and(
+        eq(timeEntries.userId, session.user.id),
+        isNull(timeEntries.deletedAt),
+        gte(timeEntries.workDate, weekStartISO()),
+      ),
+    );
+  const hoursThisWeek = Number(agg?.total ?? 0);
+
+  const [invAgg] = await db
+    .select({ open: sql<string>`count(*)` })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.userId, session.user.id),
+        isNull(invoices.deletedAt),
+        ne(invoices.status, "paid"),
+      ),
+    );
+  const openInvoices = Number(invAgg?.open ?? 0);
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground text-sm">Welcome back, {name}.</p>
       </div>
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-          <CardDescription>Your EndlessWorlds portal.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="text-sm">
-            Signed in as <strong>{session.user.email}</strong>
-          </p>
-          <SignOutButton />
-        </CardContent>
-      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Hours this week
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="font-mono text-3xl font-semibold">{hoursThisWeek}</span>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">
+              Open invoices
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="font-mono text-3xl font-semibold">{openInvoices}</span>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button asChild>
+          <Link href="/account/timesheets">
+            <Plus className="size-4" /> Log time
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/account/invoices">
+            <Plus className="size-4" /> New invoice
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
