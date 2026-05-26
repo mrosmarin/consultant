@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-05-24_
+_Last updated: 2026-05-26_
 
 ## What works
 
@@ -17,6 +17,8 @@ _Last updated: 2026-05-24_
 - **Live on Vercel** — production deploy at **https://endlessworlds-web.vercel.app**; Git-integrated (`main`→prod, Root Directory `apps/web`, Build Command `next build`); prod + preview env vars set. (DEV-88.)
 - **Brand/IA captured** — `docs/brand-and-ia.md` (DEV-89). **Public site (M2)** — `(marketing)` layout (header/footer), navy/azure theme tokens, **Home** (DEV-90), **Services** (DEV-91), **About** (DEV-92), **Work** (DEV-93: 5 named case studies), **Contact** (DEV-94: lead form → Neon). Insights still a stub. All routes render; build/lint/types green.
 - **First app table + migration** — `leads` (Drizzle) with **RLS enabled** + public-insert policy; migration `0000_*` applied to Neon. Contact form insert verified live (row created + cleaned up). (DEV-94.)
+- **Secure portal shell + dashboard (M4)** — `app/account/layout.tsx` (sidebar nav + header: email, theme toggle, sign out), `/account` dashboard cards + quick actions, stubbed timesheets/invoices. Session re-checked; guard intact. (DEV-95.)
+- **Timesheets module (M5)** — `time_entries` table (Drizzle) with **RLS enabled** + `time_entries_all` policy; migration `0001_*` applied to Neon. Add/soft-delete server actions scoped to the session user; `/account/timesheets` form + entry list; dashboard "Hours this week" wired to the live `sum(hours)`. Build/lint/types green; dev server boots; guard verified; live Neon round-trip verified (insert→query→sum→cleanup). (DEV-96.)
 
 ## What's left to build
 
@@ -36,9 +38,10 @@ _Last updated: 2026-05-24_
 - [ ] Copywriting, SEO/meta/structured data, analytics, perf.
 
 **M4/M5 — Secure portal**
-- [ ] Auth (OAuth/JWT) + role-based access control + protected routes.
-- [ ] Portal dashboard; timesheet tracking module.
-- [ ] Invoicing/billing module (potential payment integration — Stripe).
+- [x] Auth + protected routes (Neon Auth + `proxy.ts` guard). _(DEV-85)_ RBAC roles still future.
+- [x] Portal dashboard + navigation shell. _(DEV-95)_
+- [x] Timesheet tracking module (add/soft-delete, list, dashboard hours). _(DEV-96)_
+- [ ] Invoicing/billing module (potential payment integration — Stripe; payments deferred). _(DEV-97)_
 - [ ] Project/utilities showcase; CRUD with DB integration.
 
 **M6 — Launch**
@@ -47,7 +50,7 @@ _Last updated: 2026-05-24_
 
 ## Current status
 
-**M1 — Foundation.** Monorepo + Next.js app scaffolded (merged). Adopting the Neon stack (DEV-85): Drizzle wired, docs swapped; Neon Auth + cloud provisioning still to do.
+**M5 — Utilities.** Foundation (M1) + public site (M2) shipped to production; portal shell + dashboard (M4) landed. Timesheets (DEV-96) complete and verified — closing out into `develop`. Next: Invoicing (DEV-97).
 
 ## Known issues
 
