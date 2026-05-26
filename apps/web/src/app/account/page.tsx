@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { timeEntries } from "@/db/schema";
+import { invoices, timeEntries } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +38,18 @@ export default async function DashboardPage() {
     );
   const hoursThisWeek = Number(agg?.total ?? 0);
 
+  const [invAgg] = await db
+    .select({ open: sql<string>`count(*)` })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.userId, session.user.id),
+        isNull(invoices.deletedAt),
+        ne(invoices.status, "paid"),
+      ),
+    );
+  const openInvoices = Number(invAgg?.open ?? 0);
+
   return (
     <div className="space-y-6">
       <div>
@@ -63,7 +75,7 @@ export default async function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="font-mono text-3xl font-semibold">0</span>
+            <span className="font-mono text-3xl font-semibold">{openInvoices}</span>
           </CardContent>
         </Card>
       </div>

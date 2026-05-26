@@ -19,6 +19,7 @@ _Last updated: 2026-05-26_
 - **First app table + migration** — `leads` (Drizzle) with **RLS enabled** + public-insert policy; migration `0000_*` applied to Neon. Contact form insert verified live (row created + cleaned up). (DEV-94.)
 - **Secure portal shell + dashboard (M4)** — `app/account/layout.tsx` (sidebar nav + header: email, theme toggle, sign out), `/account` dashboard cards + quick actions, stubbed timesheets/invoices. Session re-checked; guard intact. (DEV-95.)
 - **Timesheets module (M5)** — `time_entries` table (Drizzle) with **RLS enabled** + `time_entries_all` policy; migration `0001_*` applied to Neon. Add/soft-delete server actions scoped to the session user; `/account/timesheets` form + entry list; dashboard "Hours this week" wired to the live `sum(hours)`. Build/lint/types green; dev server boots; guard verified; live Neon round-trip verified (insert→query→sum→cleanup). (DEV-96.)
+- **Invoicing module (M5)** — `invoices` table (Drizzle) with **RLS enabled** + `invoices_all` policy; migration `0002_*` applied to Neon. Create/status-update/soft-delete server actions scoped to the session user; `/account/invoices` create form + list with status badges (`draft|sent|paid|overdue`); dashboard "Open invoices" wired to the live count (status ≠ paid, not deleted). Build/lint/types green; dev boots; guard verified; live Neon lifecycle round-trip verified (insert→paid→sent→delete→cleanup). PDF/email (DEV-76) + Stripe (DEV-77) deferred. (DEV-97.)
 
 ## What's left to build
 
@@ -41,7 +42,7 @@ _Last updated: 2026-05-26_
 - [x] Auth + protected routes (Neon Auth + `proxy.ts` guard). _(DEV-85)_ RBAC roles still future.
 - [x] Portal dashboard + navigation shell. _(DEV-95)_
 - [x] Timesheet tracking module (add/soft-delete, list, dashboard hours). _(DEV-96)_
-- [ ] Invoicing/billing module (potential payment integration — Stripe; payments deferred). _(DEV-97)_
+- [x] Invoicing module — create/status/soft-delete, list with badges, dashboard open count. _(DEV-97)_ PDF/email (DEV-76) + Stripe (DEV-77) deferred.
 - [ ] Project/utilities showcase; CRUD with DB integration.
 
 **M6 — Launch**
@@ -50,7 +51,7 @@ _Last updated: 2026-05-26_
 
 ## Current status
 
-**M5 — Utilities.** Foundation (M1) + public site (M2) shipped to production; portal shell + dashboard (M4) landed. Timesheets (DEV-96) complete and verified — closing out into `develop`. Next: Invoicing (DEV-97).
+**M5 — Utilities (MVP complete).** Foundation (M1) + public site (M2) shipped to production; portal shell + dashboard (M4), Timesheets (DEV-96), and Invoicing (DEV-97) all landed on `develop`. M5 MVP done bar the deferred PDF/email (DEV-76) + Stripe (DEV-77). Next candidates: promote `develop`→`main` (ship M4/M5), project/utilities showcase, or M3 SEO/analytics.
 
 ## Known issues
 
