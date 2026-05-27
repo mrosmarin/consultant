@@ -12,6 +12,16 @@ export const leads = pgTable("leads", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
+// Portal access allowlist. Only emails present here (and not soft-deleted) may
+// sign up / sign in — enforced app-side in the auth server actions. Emails are
+// stored lowercase. RLS enabled as a backstop.
+export const allowedEmails = pgTable("allowed_emails", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
 // Portal time tracking. Ownership is enforced app-side (where user_id =
 // session.user.id); RLS is enabled as a backstop. user_id holds the Neon
 // Auth user id (no hard FK into the neon_auth schema).

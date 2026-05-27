@@ -29,6 +29,9 @@ export function SiteFooter() {
           <Link href="/contact" className="hover:text-foreground transition-colors">
             Contact
           </Link>
+          <Link href="/auth/sign-in" className="hover:text-foreground transition-colors">
+            Client sign in
+          </Link>
           <a href="mailto:hello@endlessworlds.xyz" className="hover:text-foreground transition-colors">
             hello@endlessworlds.xyz
           </a>

@@ -26,6 +26,9 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-2">
           <ModeToggle />
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/auth/sign-in">Sign in</Link>
+          </Button>
           <Button asChild size="sm">
             <Link href="/contact">Get in touch</Link>
           </Button>
