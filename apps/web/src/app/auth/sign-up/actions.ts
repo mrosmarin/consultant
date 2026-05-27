@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth/server";
+import { isEmailAllowed } from "@/lib/auth/allowlist";
 import type { AuthFormState } from "@/app/auth/sign-in/actions";
 
 export async function signUpWithEmail(
@@ -12,6 +13,9 @@ export async function signUpWithEmail(
   const email = formData.get("email") as string;
   if (!email) {
     return { error: "Email address must be provided." };
+  }
+  if (!(await isEmailAllowed(email))) {
+    return { error: "This email isn't authorized for portal access." };
   }
 
   const { error } = await auth.signUp.email({

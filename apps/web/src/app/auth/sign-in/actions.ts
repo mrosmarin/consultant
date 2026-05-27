@@ -3,15 +3,23 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth/server";
+import { isEmailAllowed } from "@/lib/auth/allowlist";
 
 export type AuthFormState = { error: string } | null;
+
+const NOT_ALLOWED = "This email isn't authorized for portal access.";
 
 export async function signInWithEmail(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  const email = formData.get("email") as string;
+  if (!email || !(await isEmailAllowed(email))) {
+    return { error: NOT_ALLOWED };
+  }
+
   const { error } = await auth.signIn.email({
-    email: formData.get("email") as string,
+    email,
     password: formData.get("password") as string,
   });
 
