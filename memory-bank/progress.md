@@ -21,7 +21,8 @@ _Last updated: 2026-05-26_
 - **Timesheets module (M5)** — `time_entries` table (Drizzle) with **RLS enabled** + `time_entries_all` policy; migration `0001_*` applied to Neon. Add/soft-delete server actions scoped to the session user; `/account/timesheets` form + entry list; dashboard "Hours this week" wired to the live `sum(hours)`. Build/lint/types green; dev server boots; guard verified; live Neon round-trip verified (insert→query→sum→cleanup). (DEV-96.)
 - **Invoicing module (M5)** — `invoices` table (Drizzle) with **RLS enabled** + `invoices_all` policy; migration `0002_*` applied to Neon. Create/status-update/soft-delete server actions scoped to the session user; `/account/invoices` create form + list with status badges (`draft|sent|paid|overdue`); dashboard "Open invoices" wired to the live count (status ≠ paid, not deleted). Build/lint/types green; dev boots; guard verified; live Neon lifecycle round-trip verified (insert→paid→sent→delete→cleanup). PDF/email (DEV-76) + Stripe (DEV-77) deferred. (DEV-97.)
 - **SEO foundation (M3)** — Next 16 Metadata API: root title template + `metadataBase` + OG/Twitter defaults + robots; per-page metadata + canonicals; JSON-LD `@graph` (Organization+ProfessionalService/Person/WebSite); `sitemap.ts` + `robots.ts`; branded `opengraph-image` via `next/og`. Site origin via `NEXT_PUBLIC_SITE_URL` (`src/lib/site.ts`). Gates green; sitemap/robots/OG verified on dev — **shipped to prod** (PR #21). (DEV-65.)
-- **Analytics (M3)** — Vercel Web Analytics (cookieless; no consent banner). `<Analytics />` in root layout + server-side `track("contact_lead")` (no PII) on lead insert. Web Analytics enabled on the project. GA4 not used; CWV/Speed Insights → DEV-80. (DEV-67.)
+- **Analytics (M3)** — **Google Analytics 4** via `@next/third-parties`, gated behind a cookie-consent banner (`site-analytics.tsx`, `useSyncExternalStore`); GA + cookies load only after Accept. Client `sendGAEvent("contact_lead")` on contact success. Activates when `NEXT_PUBLIC_GA_ID` is set (user provides). Gates green; no GA before consent (curl-verified). Pivoted from Vercel Web Analytics (cost). CWV/Speed Insights → DEV-80. (DEV-67.)
+- **Portal access allowlist (M4)** — `allowed_emails` table (RLS + `allowed_emails_all` policy; migration `0003_*` applied to prod + preview branches; seeded `mrosmarin@gmail.com`). `isEmailAllowed()` enforced in sign-up + sign-in actions; non-allowlisted emails rejected before Neon Auth. Public **Sign in** link in header + footer. Gates green; allowlist query + links verified. Caveat: raw `/api/auth/[...path]` not gated (follow-up). (DEV-98.)
 
 ## What's left to build
 
@@ -39,7 +40,7 @@ _Last updated: 2026-05-26_
 - [x] Public pages: Home, Services, About, Case studies, Contact. _(DEV-90–94)_ Insights still a stub.
 - [x] Lead-capture / contact form → Neon (Drizzle, with RLS). _(DEV-94)_
 - [x] SEO: meta/OG/Twitter, canonicals, JSON-LD, sitemap, robots, OG image. _(DEV-65, shipped to prod)_
-- [x] Analytics: Vercel Web Analytics + lead conversion event. _(DEV-67)_
+- [x] Analytics: GA4 behind a cookie-consent banner + lead event (activates once `NEXT_PUBLIC_GA_ID` set). _(DEV-67)_
 - [ ] Copywriting polish (DEV-63/64), insights/blog (DEV-59/66), perf/CWV (DEV-80).
 
 **M4/M5 — Secure portal**

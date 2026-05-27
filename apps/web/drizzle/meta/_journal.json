@@ -22,6 +22,13 @@
       "when": 1779826086095,
       "tag": "0002_redundant_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779836195890,
+      "tag": "0003_bent_sinister_six",
+      "breakpoints": true
     }
   ]
 }
