@@ -5,6 +5,10 @@ export const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://endlessworlds-web.vercel.app"
 ).replace(/\/$/, "");
 
+// Only the production deployment is indexable; preview/staging/local get
+// noindex (Vercel sets VERCEL_ENV = production | preview | development).
+export const isProd = process.env.VERCEL_ENV === "production";
+
 export const site = {
   name: "EndlessWorlds",
   legalName: "EndlessWorlds, LLC",
