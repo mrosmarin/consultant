@@ -4,7 +4,7 @@ import "./globals.css";
 
 import { SiteAnalytics } from "@/components/site-analytics";
 import { ThemeProvider } from "@/components/theme-provider";
-import { site, siteUrl } from "@/lib/site";
+import { isProd, site, siteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,11 +49,13 @@ export const metadata: Metadata = {
     title: "EndlessWorlds — Engineering leadership & AI-native architecture",
     description: site.description,
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
-  },
+  robots: isProd
+    ? {
+        index: true,
+        follow: true,
+        googleBot: { index: true, follow: true, "max-image-preview": "large" },
+      }
+    : { index: false, follow: false },
 };
 
 export default function RootLayout({
