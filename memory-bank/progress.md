@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-05-26_
+_Last updated: 2026-05-29_
 
 ## What works
 
@@ -21,8 +21,12 @@ _Last updated: 2026-05-26_
 - **Timesheets module (M5)** — `time_entries` table (Drizzle) with **RLS enabled** + `time_entries_all` policy; migration `0001_*` applied to Neon. Add/soft-delete server actions scoped to the session user; `/account/timesheets` form + entry list; dashboard "Hours this week" wired to the live `sum(hours)`. Build/lint/types green; dev server boots; guard verified; live Neon round-trip verified (insert→query→sum→cleanup). (DEV-96.)
 - **Invoicing module (M5)** — `invoices` table (Drizzle) with **RLS enabled** + `invoices_all` policy; migration `0002_*` applied to Neon. Create/status-update/soft-delete server actions scoped to the session user; `/account/invoices` create form + list with status badges (`draft|sent|paid|overdue`); dashboard "Open invoices" wired to the live count (status ≠ paid, not deleted). Build/lint/types green; dev boots; guard verified; live Neon lifecycle round-trip verified (insert→paid→sent→delete→cleanup). PDF/email (DEV-76) + Stripe (DEV-77) deferred. (DEV-97.)
 - **SEO foundation (M3)** — Next 16 Metadata API: root title template + `metadataBase` + OG/Twitter defaults + robots; per-page metadata + canonicals; JSON-LD `@graph` (Organization+ProfessionalService/Person/WebSite); `sitemap.ts` + `robots.ts`; branded `opengraph-image` via `next/og`. Site origin via `NEXT_PUBLIC_SITE_URL` (`src/lib/site.ts`). Gates green; sitemap/robots/OG verified on dev — **shipped to prod** (PR #21). (DEV-65.)
-- **Analytics (M3)** — **Google Analytics 4** via `@next/third-parties`, gated behind a cookie-consent banner (`site-analytics.tsx`, `useSyncExternalStore`); GA + cookies load only after Accept. Client `sendGAEvent("contact_lead")` on contact success. Activates when `NEXT_PUBLIC_GA_ID` is set (user provides). Gates green; no GA before consent (curl-verified). Pivoted from Vercel Web Analytics (cost). CWV/Speed Insights → DEV-80. (DEV-67.)
-- **Portal access allowlist (M4)** — `allowed_emails` table (RLS + `allowed_emails_all` policy; migration `0003_*` applied to prod + preview branches; seeded `mrosmarin@gmail.com`). `isEmailAllowed()` enforced in sign-up + sign-in actions; non-allowlisted emails rejected before Neon Auth. Public **Sign in** link in header + footer. Gates green; allowlist query + links verified. Caveat: raw `/api/auth/[...path]` not gated (follow-up). (DEV-98.)
+- **Analytics (M3)** — **Google Analytics 4** via `@next/third-parties`, gated behind a cookie-consent banner (`site-analytics.tsx`, `useSyncExternalStore`); GA + cookies load only after Accept. Client `sendGAEvent("contact_lead")` on contact success. **LIVE in prod:** `NEXT_PUBLIC_GA_ID=G-G830M5YF0W` set + redeployed (ID confirmed in prod bundle). Pivoted from Vercel Web Analytics (cost). CWV/Speed Insights → DEV-80. (DEV-67, Done.)
+- **Portal access allowlist (M4)** — `allowed_emails` table (RLS + `allowed_emails_all` policy; migration `0003_*`; seeded `mrosmarin@gmail.com`). `isEmailAllowed()` enforced in sign-up + sign-in actions; non-allowlisted emails rejected before Neon Auth. Public **Sign in** link in header + footer. Shipped to prod. Caveat: raw `/api/auth/[...path]` not gated (follow-up). (DEV-98, Done.)
+- **Custom domain (launch)** — **https://endlessworlds.xyz LIVE** (Hover registrar/NS, apex A → Vercel, www→apex 308, SSL); `NEXT_PUBLIC_SITE_URL` flipped to it; Neon Auth trusted domains updated. (DEV-82, In Progress — email DNS / GSC / monitoring remain.)
+- **noindex non-prod** — staging/preview return `robots.txt Disallow: /` + `noindex,nofollow`; prod indexable. Gated on `VERCEL_ENV`. (DEV-99, Done.)
+- **Isolated staging/QA env** — dedicated Neon project `EndlessWorlds.Staging` (own DB + Neon Auth) behind `staging.endlessworlds.xyz` (deploys from `develop`). `make db-reset-staging` wipes login + data for clean E2E; hard-guarded to the staging project. (DEV-81, In Progress — staging env done; pre-launch walkthrough remains.)
+- **`/checkpoint` skill** — `.agents/skills/checkpoint/SKILL.md` for on-demand session-state persistence. (DEV-100, Done.)
 
 ## What's left to build
 
@@ -41,7 +45,7 @@ _Last updated: 2026-05-26_
 - [x] Lead-capture / contact form → Neon (Drizzle, with RLS). _(DEV-94)_
 - [x] SEO: meta/OG/Twitter, canonicals, JSON-LD, sitemap, robots, OG image. _(DEV-65, shipped to prod)_
 - [x] Analytics: GA4 behind a cookie-consent banner + lead event (activates once `NEXT_PUBLIC_GA_ID` set). _(DEV-67)_
-- [ ] Copywriting polish (DEV-63/64), insights/blog (DEV-59/66), perf/CWV (DEV-80).
+- [ ] Copywriting polish (DEV-63/64), insights/blog (DEV-59/66 — Insights still a stub), perf/CWV (DEV-80).
 
 **M4/M5 — Secure portal**
 - [x] Auth + protected routes (Neon Auth + `proxy.ts` guard). _(DEV-85)_ RBAC roles still future.
@@ -51,12 +55,14 @@ _Last updated: 2026-05-26_
 - [ ] Project/utilities showcase; CRUD with DB integration.
 
 **M6 — Launch**
-- [ ] E2E tests, cross-browser/device QA, perf + security audits.
-- [ ] DNS / `endlessworlds.xyz` domain setup; production launch.
+- [x] DNS / `endlessworlds.xyz` domain + SSL LIVE. _(DEV-82)_
+- [x] Isolated staging/QA env (`staging.endlessworlds.xyz`). _(DEV-81)_
+- [ ] Email DNS (SPF/DKIM/DMARC), Google Search Console sitemap, uptime/error monitoring. _(DEV-82 remainder)_
+- [ ] E2E tests, cross-browser/device + a11y QA, perf + security audits. _(DEV-78/79/80)_
 
 ## Current status
 
-**M3 — Content/SEO/Analytics (in progress).** M1/M2 + full portal (M4/M5) live in production. SEO (DEV-65) shipped to prod; Analytics (DEV-67 — Vercel Web Analytics) built + verified, closing into `develop`. Remaining M3: copy polish (DEV-63/64), insights/blog (DEV-59/66). Other open work: utilities showcase (DEV-71), RBAC roles (DEV-69), M6 launch/QA, and a real test suite (no automated coverage yet).
+**M1/M2/M4/M5 live in production at https://endlessworlds.xyz; on M3 + launch hardening.** SEO + GA4 live in prod; custom domain live; isolated staging/QA env live (resettable via `make db-reset-staging`). `develop` is ahead of `main` by noindex (DEV-99) + staging tooling (DEV-81) + checkpoint skill (DEV-100) — prod-behavior-neutral, release when convenient. **Resume:** M3 — insights/blog (DEV-59/66) or copy polish (DEV-63/64). Bigger gaps: utilities showcase (DEV-71), RBAC (DEV-69), and a real test suite (no automated coverage yet).
 
 ## Known issues
 

@@ -131,6 +131,11 @@ db-push: ## Push schema directly to the DB (dev/prototyping only)
 db-studio: ## Open Drizzle Studio
 	pnpm --filter web db:studio
 
+.PHONY: db-reset-staging
+db-reset-staging: ## Wipe STAGING/QA app data (timesheets, invoices, leads) for a clean e2e test — keeps schema + allowlist; never touches prod
+	@set -a; [ -f .devcontainer/.env ] && . ./.devcontainer/.env; set +a; \
+	cd apps/web && node scripts/reset-staging-db.mjs
+
 # ─── Worktrees (parallel feature branches) ───────────────────────────
 
 .PHONY: worktree-new

@@ -11,7 +11,7 @@ If you're adding a feature that needs a new env var or rotating a leaked credent
 | Git branch | Deploy target (Vercel) | Scope | Migration / schema application |
 |---|---|---|---|
 | `main` | Production | Production | `drizzle-kit migrate` against the prod Neon branch |
-| `develop` | Preview (staging) | Preview | `drizzle-kit migrate` against the staging Neon branch |
+| `develop` | staging.endlessworlds.xyz | Preview (develop-scoped) | `drizzle-kit migrate` against the **dedicated `EndlessWorlds.Staging` Neon project** (own DB + auth) |
 | `feature/dev-XXX-*` PR | Preview | Preview | optional per-PR Neon branch |
 | `localhost` | Local dev (devcontainer) | n/a | `make db-migrate` against a Neon dev branch |
 
@@ -59,12 +59,15 @@ make dev       # dev server only — Neon is cloud, nothing local to boot
 - The preview points at the **staging Neon branch**, or a **per-PR Neon branch** if configured (Neon branching pairs with Vercel previews).
 - On merge: the preview deployment is retained per Vercel's retention settings; an ephemeral Neon branch can be auto-deleted.
 
-### 3. Staging (`develop`)
+### 3. Staging / QA (`develop` → `staging.endlessworlds.xyz`)
 
 **What:**
-- The `develop` branch is the staging environment. All feature PRs target `develop` first.
-- Pushes to `develop` auto-deploy a Vercel preview/staging build.
-- Schema changes are applied to the **staging Neon branch** (`drizzle-kit migrate` with the staging `DATABASE_URL_UNPOOLED`).
+- The `develop` branch is the staging/QA environment, served at **https://staging.endlessworlds.xyz** (custom domain assigned to the `develop` branch in Vercel). All feature PRs target `develop` first.
+- **Fully isolated from production** via a **dedicated Neon project `EndlessWorlds.Staging`** (`winter-dew-93819743`) — its own database **and** its own Neon Auth (separate `NEON_AUTH_BASE_URL`). So QA logins + data never touch prod. (Set via `develop`-branch-scoped Vercel env vars: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`.)
+- `noindex` (robots `Disallow: /`) — see DEV-99. Vercel SSO/deployment protection is off so it's reachable.
+- **Reset for a clean end-to-end test:** `make db-reset-staging` wipes both login (`neon_auth` users/sessions) and app data (timesheets/invoices/leads), keeping the schema + the allowlist. Then re-register from scratch. The script is hard-guarded to the staging project by name and can never touch prod.
+- Schema changes: `drizzle-kit migrate` with the staging project's `DATABASE_URL_UNPOOLED`.
+- **Note:** PR previews (non-`develop` branches) still use the prod project's `preview` Neon branch (shared auth) — only `develop`/staging gets the fully isolated project.
 
 ### 4. Production (`main`)
 

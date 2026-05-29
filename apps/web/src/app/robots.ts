@@ -1,8 +1,12 @@
 import type { MetadataRoute } from "next";
 
-import { siteUrl } from "@/lib/site";
+import { isProd, siteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
+  // Non-production deploys (preview/staging) must not be crawled or indexed.
+  if (!isProd) {
+    return { rules: { userAgent: "*", disallow: "/" } };
+  }
   return {
     rules: {
       userAgent: "*",
