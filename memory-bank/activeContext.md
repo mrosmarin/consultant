@@ -1,18 +1,21 @@
 # Active Context
 
-_Last updated: 2026-05-28_
+_Last updated: 2026-05-29_
 
 ## Current focus
 
-**Prod fully live (site + portal + custom domain + GA4); staging env stood up.** Production: **https://endlessworlds.xyz** (custom domain live, SSL, www→apex). GA4 active (`G-G830M5YF0W`). **Staging/QA: https://staging.endlessworlds.xyz** (deploys from `develop`, isolated Neon `staging` branch, resettable). Current work: **DEV-99 — noindex non-prod deploys**. Remaining M3: copy polish (DEV-63/64), insights/blog (DEV-59/66).
+**Prod fully live (site + portal + custom domain + GA4); fully isolated staging/QA env built.** Production: **https://endlessworlds.xyz**. **Staging/QA: https://staging.endlessworlds.xyz** — now a SEPARATE Neon project (own DB + own Neon Auth), resettable incl. login via `make db-reset-staging`. Remaining M3: copy polish (DEV-63/64), insights/blog (DEV-59/66).
 
 ## Environments
 
-- **Production** — `main` → `endlessworlds.xyz` (+ `endlessworlds-web.vercel.app`). Neon `production` branch. Indexable.
-- **Staging/QA** — `develop` → `staging.endlessworlds.xyz`. Neon `staging` branch (`br-plain-dawn-aqbocs2h`) — empty/resettable, allowlist seeded. Vercel SSO protection is OFF (all previews public). noindex (DEV-99).
-- **Neon Auth trusted domains:** `endlessworlds.xyz`, `www.`, `staging.`, `endlessworlds-web.vercel.app`. Custom-domain DNS at **Hover** (Hover nameservers).
+- **Production** — `main` → `endlessworlds.xyz` (+ `endlessworlds-web.vercel.app`). Neon project `dry-darkness-00977469` (`production` branch) + that project's Neon Auth. Indexable.
+- **Staging/QA** — `develop` → `staging.endlessworlds.xyz`. **Dedicated Neon project `EndlessWorlds.Staging` = `winter-dew-93819743`** (own DB **and** own Neon Auth) → logins + data fully isolated from prod. Wired via `develop`-branch-scoped Vercel env (`DATABASE_URL`/`_UNPOOLED`/`NEON_AUTH_BASE_URL`/`NEON_AUTH_COOKIE_SECRET`). `noindex` (DEV-99); Vercel SSO protection OFF (all previews public). Reset: `make db-reset-staging` (wipes auth+data, keeps schema+allowlist; hard-guarded to the staging project by name).
+- **PR previews** (non-`develop`) — still the prod project's `preview` branch (shared auth). Only `develop`/staging gets the isolated project.
+- **Neon Auth trusted domains:** prod project → `endlessworlds.xyz`, `www.`, `staging.` (legacy), `endlessworlds-web.vercel.app`; staging project → `staging.endlessworlds.xyz`. DNS at **Hover**.
 
 ## Recent changes
+
+- **DEV-81 (isolated staging/QA — separate Neon project):** Replaced the branch-based staging (which shared prod's Neon Auth) with a dedicated Neon project `EndlessWorlds.Staging` (`winter-dew-93819743`): created project, ran migrations (0000–0003) + allowlist seed, enabled Neon Auth via API (`POST /projects/{id}/branches/{br}/auth` `better_auth`), generated a cookie secret, repointed `develop`-scoped Vercel env at it, added its trusted domain, deleted the orphaned prod-project `staging` branch. `make db-reset-staging` now wipes login + data on the staging project. Verified: staging serves, auth endpoint 200 on the new base URL, prod env untouched. (Reason: Neon Auth is one service per project — branch isolation didn't isolate auth.)
 
 - **DEV-99 (noindex non-prod):** `isProd = VERCEL_ENV === "production"` in `src/lib/site.ts`. `robots.ts` → `Disallow: /` when non-prod; root `metadata.robots` → `noindex,nofollow` when non-prod. Verified non-prod path live (robots Disallow:/ + meta noindex,nofollow); prod path unchanged/indexable.
 - **DEV-81 (staging env):** stood up `staging.endlessworlds.xyz` from `develop` on an isolated Neon `staging` branch (truncated; allowlist seeded); `develop`-branch-scoped `DATABASE_URL`/`_UNPOOLED` point at it; added to Neon Auth trusted domains; disabled Vercel SSO protection so it's reachable (also exposes PR previews). Reset on request.
