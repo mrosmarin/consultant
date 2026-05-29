@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { suggestInvoicePrefix } from "@/lib/billing";
 
 import { saveCompany } from "./actions";
 
@@ -39,6 +40,7 @@ export type CompanyFormValues = {
   retainerAmount: string | null;
   billingFrequency: string;
   billingAnchorDay: number | null;
+  invoicePrefix: string | null;
 };
 
 export function CompanyForm({ company }: { company?: CompanyFormValues }) {
@@ -46,13 +48,46 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
   const [billingType, setBillingType] = useState(company?.billingType ?? "hourly");
   const editing = Boolean(company);
 
+  // Invoice prefix auto-suggests from the name while onboarding, until the user
+  // edits it. In edit mode we leave the saved prefix alone.
+  const [name, setName] = useState(company?.name ?? "");
+  const [prefix, setPrefix] = useState(company?.invoicePrefix ?? "");
+  const [prefixTouched, setPrefixTouched] = useState(false);
+  const onNameChange = (value: string) => {
+    setName(value);
+    if (!editing && !prefixTouched) setPrefix(suggestInvoicePrefix(value));
+  };
+
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
       {editing ? <input type="hidden" name="id" value={company!.id} /> : null}
 
       <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="name">Company name</Label>
-        <Input id="name" name="name" defaultValue={company?.name ?? ""} required />
+        <Input
+          id="name"
+          name="name"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="grid gap-2 sm:col-span-2">
+        <Label htmlFor="invoicePrefix">Invoice prefix</Label>
+        <Input
+          id="invoicePrefix"
+          name="invoicePrefix"
+          value={prefix}
+          onChange={(e) => {
+            setPrefixTouched(true);
+            setPrefix(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10));
+          }}
+          placeholder="ACME"
+        />
+        <p className="text-muted-foreground text-xs">
+          Used for generated invoice numbers, e.g. <span className="font-mono">{(prefix || "INV")}-0001</span>. Auto-suggested from the name; edit to override.
+        </p>
       </div>
 
       <div className="grid gap-2">

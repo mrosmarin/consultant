@@ -54,7 +54,8 @@ _Last updated: 2026-05-29_
 - [x] Invoicing module — create/status/soft-delete, list with badges, dashboard open count. _(DEV-97)_ PDF/email (DEV-76) + Stripe (DEV-77) deferred.
 - [~] **Company/client entity + onboarding** — `companies` table (migration `0004`, RLS + soft-delete) with both billing models (hourly|retainer) + frequency; `/account/companies` onboarding; timesheets/invoices reference `company_id`; time entries gained start/end times. Gates green + live dev round-trip. _(DEV-101, PR open — apply 0004 to staging/prod at deploy)_
 - [~] **Auth UX** — password reveal toggle, confirm-password, length-first policy (min 12). Gates green. _(DEV-102, PR #36)_
-- [ ] Invoice accrual from billing period + timesheets _(DEV-103)_; company document storage _(DEV-104)_; Drive sync + PDF export _(DEV-105 ↔ DEV-76)_.
+- [~] **Invoice generation** — invoice prefix on company + "Generate invoice" button → draft for the latest completed billing period (hourly = unbilled hours × rate, entries stamped billed; retainer = flat). Migration `0005`; `src/lib/billing.ts` period math (unit-checked); faithful dev round-trip passed. _(DEV-103, PR pending)_. Future auto-gen via Neon pg_cron.
+- [ ] Company document storage _(DEV-104)_; Drive sync + PDF export _(DEV-105 ↔ DEV-76)_.
 - [ ] Project/utilities showcase; CRUD with DB integration. _(DEV-71)_
 
 **M6 — Launch**
