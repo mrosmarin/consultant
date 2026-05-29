@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/password-input";
+import { PASSWORD_GUIDANCE } from "@/lib/auth/password";
 
 import { signUpWithEmail } from "./actions";
 
@@ -43,11 +45,22 @@ export default function SignUpPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
+                minLength={12}
+                required
+              />
+              <p className="text-muted-foreground text-xs">{PASSWORD_GUIDANCE}</p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <PasswordInput
+                id="confirmPassword"
+                name="confirmPassword"
+                autoComplete="new-password"
+                minLength={12}
                 required
               />
             </div>

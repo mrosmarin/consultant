@@ -1,8 +1,8 @@
 # EndlessWorlds
 
-The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
+The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, **companies/clients**, timesheets, invoicing, project showcase).
 
-> Status (M3 — Content/SEO/Analytics): **Live at https://endlessworlds.xyz** — public marketing site + full secure portal (auth + **email allowlist**, dashboard, **timesheets**, **invoicing**), SEO (Metadata API, JSON-LD, sitemap, robots, OG image — DEV-65), and **Google Analytics 4** behind a cookie-consent banner (DEV-67, active). Isolated **staging/QA** at https://staging.endlessworlds.xyz (own Neon project + auth; `make db-reset-staging` for clean E2E). Next: copy polish (DEV-63/64), insights/blog (DEV-59/66). Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
+> Status (M3 — Content/SEO/Analytics): **Live at https://endlessworlds.xyz** — public marketing site + full secure portal (auth + **email allowlist**, dashboard, **companies** with hourly/retainer billing terms, **timesheets** logged against a company with optional start/end times, **invoicing**), SEO (Metadata API, JSON-LD, sitemap, robots, OG image — DEV-65), and **Google Analytics 4** behind a cookie-consent banner (DEV-67, active). Isolated **staging/QA** at https://staging.endlessworlds.xyz (own Neon project + auth; `make db-reset-staging` for clean E2E). In flight: company/client onboarding (DEV-101), auth UX polish (DEV-102); next accrual (DEV-103), company docs (DEV-104), Drive/PDF (DEV-105). Next M3: copy polish (DEV-63/64), insights/blog (DEV-59/66). Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
 
 ## Stack
 
