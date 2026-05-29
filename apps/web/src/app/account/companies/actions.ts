@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -15,12 +15,8 @@ import {
   type BillingFrequency,
 } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import {
-  latestCompletedPeriod,
-  suggestInvoicePrefix,
-  addDaysISO,
-  NET_TERMS_DAYS,
-} from "@/lib/billing";
+import { suggestInvoicePrefix } from "@/lib/billing";
+import { buildInvoiceDraft } from "@/lib/invoicing";
 
 export type CompanyState = { ok: boolean; error?: string } | null;
 
@@ -175,58 +171,16 @@ export async function generateInvoice(
     .limit(1);
   if (!company) return { ok: false, error: "Company not found." };
 
-  const period = latestCompletedPeriod(
-    company.billingFrequency,
-    company.billingAnchorDay,
-    new Date().toISOString().slice(0, 10),
-  );
-  const issueDate = new Date().toISOString().slice(0, 10);
-  const dueDate = addDaysISO(issueDate, NET_TERMS_DAYS);
+  if (company.billingType === "hourly" && !company.hourlyRate) {
+    return { ok: false, error: "Set an hourly rate on the company first." };
+  }
+  if (company.billingType === "retainer" && !company.retainerAmount) {
+    return { ok: false, error: "Set a retainer amount on the company first." };
+  }
 
-  // Per-company invoice number: {PREFIX}-{seq}. Count includes soft-deleted rows
-  // so numbers are never reused.
-  const prefix = company.invoicePrefix || suggestInvoicePrefix(company.name);
-  const [{ n }] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(invoices)
-    .where(eq(invoices.companyId, companyId));
-  const invoiceNumber = `${prefix}-${String((n ?? 0) + 1).padStart(4, "0")}`;
-
-  let amount: string;
-  let notes: string;
-  let billedIds: string[] = [];
-
-  if (company.billingType === "hourly") {
-    if (!company.hourlyRate) {
-      return { ok: false, error: "Set an hourly rate on the company first." };
-    }
-    const entries = await db
-      .select({ id: timeEntries.id, hours: timeEntries.hours })
-      .from(timeEntries)
-      .where(
-        and(
-          eq(timeEntries.companyId, companyId),
-          eq(timeEntries.userId, session.user.id),
-          isNull(timeEntries.deletedAt),
-          isNull(timeEntries.billedAt),
-          lte(timeEntries.workDate, period.end),
-        ),
-      );
-    const totalHours = entries.reduce((sum, e) => sum + Number(e.hours), 0);
-    if (totalHours <= 0) {
-      return { ok: false, error: `No unbilled hours up to ${period.end}.` };
-    }
-    billedIds = entries.map((e) => e.id);
-    amount = (totalHours * Number(company.hourlyRate)).toFixed(2);
-    notes = `Auto-generated • ${period.start} – ${period.end} • ${totalHours} hrs @ $${Number(
-      company.hourlyRate,
-    ).toFixed(2)}/hr`;
-  } else {
-    if (!company.retainerAmount) {
-      return { ok: false, error: "Set a retainer amount on the company first." };
-    }
-    amount = Number(company.retainerAmount).toFixed(2);
-    notes = `Auto-generated retainer • ${period.start} – ${period.end}`;
+  const draft = await buildInvoiceDraft(company, session.user.id);
+  if (company.billingType === "hourly" && draft.hours <= 0) {
+    return { ok: false, error: `No unbilled hours up to ${draft.periodEnd}.` };
   }
 
   const [invoice] = await db
@@ -234,25 +188,25 @@ export async function generateInvoice(
     .values({
       userId: session.user.id,
       companyId,
-      invoiceNumber,
-      issueDate,
-      dueDate,
-      amount,
+      invoiceNumber: draft.invoiceNumber,
+      issueDate: draft.issueDate,
+      dueDate: draft.dueDate,
+      amount: draft.amount,
       status: "draft",
-      notes,
+      notes: draft.notes,
     })
     .returning({ id: invoices.id });
 
   // Stamp the billed entries so they can't be billed again.
-  if (billedIds.length > 0) {
+  if (draft.billedEntryIds.length > 0) {
     await db
       .update(timeEntries)
       .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
-      .where(inArray(timeEntries.id, billedIds));
+      .where(inArray(timeEntries.id, draft.billedEntryIds));
   }
 
   revalidatePath("/account/invoices");
   revalidatePath("/account/companies");
   revalidatePath("/account");
-  return { ok: true, invoiceNumber, amount };
+  return { ok: true, invoiceNumber: draft.invoiceNumber, amount: draft.amount };
 }
