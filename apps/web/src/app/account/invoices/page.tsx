@@ -3,8 +3,9 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { invoices, INVOICE_STATUSES } from "@/db/schema";
+import { companies, invoices, INVOICE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { listCompanyOptions } from "@/lib/companies";
 
 import { deleteInvoice, updateInvoiceStatus } from "./actions";
 import { AddInvoiceForm } from "./add-invoice-form";
@@ -24,11 +25,24 @@ export default async function InvoicesPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
 
-  const rows = await db
-    .select()
-    .from(invoices)
-    .where(and(eq(invoices.userId, session.user.id), isNull(invoices.deletedAt)))
-    .orderBy(desc(invoices.issueDate), desc(invoices.createdAt));
+  const [companyOptions, rows] = await Promise.all([
+    listCompanyOptions(session.user.id),
+    db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        client: invoices.client,
+        companyName: companies.name,
+        issueDate: invoices.issueDate,
+        dueDate: invoices.dueDate,
+        amount: invoices.amount,
+        status: invoices.status,
+      })
+      .from(invoices)
+      .leftJoin(companies, eq(invoices.companyId, companies.id))
+      .where(and(eq(invoices.userId, session.user.id), isNull(invoices.deletedAt)))
+      .orderBy(desc(invoices.issueDate), desc(invoices.createdAt)),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -42,7 +56,7 @@ export default async function InvoicesPage() {
           <CardTitle className="text-base">New invoice</CardTitle>
         </CardHeader>
         <CardContent>
-          <AddInvoiceForm />
+          <AddInvoiceForm companies={companyOptions} />
         </CardContent>
       </Card>
 
@@ -68,7 +82,7 @@ export default async function InvoicesPage() {
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t">
                     <td className="px-4 py-2 font-mono text-xs">{r.invoiceNumber}</td>
-                    <td className="px-4 py-2">{r.client}</td>
+                    <td className="px-4 py-2">{r.companyName ?? r.client ?? "—"}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.issueDate}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
                     <td className="px-4 py-2 text-right font-mono">{usd.format(Number(r.amount))}</td>

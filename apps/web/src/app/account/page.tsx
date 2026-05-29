@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { invoices, timeEntries } from "@/db/schema";
+import { companies, invoices, timeEntries } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,12 @@ export default async function DashboardPage() {
     );
   const openInvoices = Number(invAgg?.open ?? 0);
 
+  const [coAgg] = await db
+    .select({ total: sql<string>`count(*)` })
+    .from(companies)
+    .where(and(eq(companies.userId, session.user.id), isNull(companies.deletedAt)));
+  const companyCount = Number(coAgg?.total ?? 0);
+
   return (
     <div className="space-y-6">
       <div>
@@ -57,7 +63,7 @@ export default async function DashboardPage() {
         <p className="text-muted-foreground text-sm">Welcome back, {name}.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="text-muted-foreground text-sm font-medium">
@@ -78,6 +84,14 @@ export default async function DashboardPage() {
             <span className="font-mono text-3xl font-semibold">{openInvoices}</span>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-muted-foreground text-sm font-medium">Companies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="font-mono text-3xl font-semibold">{companyCount}</span>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -89,6 +103,11 @@ export default async function DashboardPage() {
         <Button asChild variant="outline">
           <Link href="/account/invoices">
             <Plus className="size-4" /> New invoice
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/account/companies">
+            <Building2 className="size-4" /> Onboard company
           </Link>
         </Button>
       </div>

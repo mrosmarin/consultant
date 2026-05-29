@@ -6,9 +6,10 @@ _Last updated: 2026-05-29_
 
 ## Current focus
 
-**Prod fully live; isolated staging/QA env live; finishing M3.**
+**Prod fully live; isolated staging/QA env live; deepening the portal (companies/billing) + finishing M3.**
 - **Production:** https://endlessworlds.xyz (custom domain, SSL, www→apex) — public site + secure portal (auth + allowlist, dashboard, timesheets, invoicing), SEO, GA4 (`G-G830M5YF0W`, consent-gated).
 - **Staging/QA:** https://staging.endlessworlds.xyz — dedicated Neon project, fully isolated (data **and** auth), resettable via `make db-reset-staging` (wipes login + data). `noindex`.
+- **In flight (portal):** DEV-101 company/client entity + onboarding (timesheets/invoices now hang off a company; both billing models), DEV-102 auth UX (password reveal/policy/confirm). Then accrual (DEV-103), company docs (DEV-104), Drive/PDF (DEV-105).
 - **Remaining M3:** copy polish (DEV-63/64), insights/blog (DEV-59/66).
 
 ## Environments
@@ -21,6 +22,9 @@ _Last updated: 2026-05-29_
 
 ## Recent changes (newest first; deduped at the 2026-05-29 checkpoint)
 
+- **DEV-101 (client/company entity + onboarding):** New `companies` table (migration `0004`, RLS + `companies_all` policy, soft-delete, owner-scoped) with billing config — `billing_type` hourly|retainer, `hourly_rate`/`retainer_amount`, `billing_frequency` weekly|biweekly|semimonthly|monthly, `billing_anchor_day`. Onboarding UI at `/account/companies` (list + form) + `/account/companies/[id]/edit`; **Companies** in portal nav + dashboard count/quick-action. `time_entries` + `invoices` migrated to `company_id` (FK; legacy free-text `client` now nullable + display fallback); both forms pick a company. Time entries gained `start_time`/`end_time` (hours auto-derive from the span). Gates green; live Neon round-trip PASSED on the **dev** branch (migration applied to dev only — staging/prod apply is a separate deploy step, like 0000–0003). Picker shared via `src/lib/companies.ts`. (PR #?, In Progress.)
+- **DEV-102 (auth UX):** Accessible `PasswordInput` reveal toggle (sign-in + sign-up), confirm-password field on registration (server validates match), length-first password policy `src/lib/auth/password.ts` (min 12, screens common/weak — stricter than Better Auth's default 8). Gates green. (PR #36, In Progress.)
+- **New tickets from portal testing (2026-05-29):** DEV-101 (company entity, ↑), DEV-102 (auth UX, ↑), **DEV-103** invoice accrual from billing period + timesheets (blocked by 101), **DEV-104** company document storage (blocked by 101), **DEV-105** Google Drive sync + PDF export (blocked by 101, ↔ DEV-76).
 - **Release + git cleanup (2026-05-29):** Shipped `develop`→`main` via **PR #34** (noindex DEV-99, staging/QA DEV-81, checkpoint skill DEV-100, checkpoint state) — all prod-behavior-neutral; `main` back-merged into `develop` so both are identical at `cf7f8ba`. Cleaned local git: deleted 8 merged feature branches (all verified against merged PRs #20/#22/#24/#25/#27/#28/#29/#30), pruned stale `: gone` remote refs. Only `develop` + `main` remain.
 - **DEV-81 (isolated staging/QA — separate Neon project):** Replaced branch-based staging (which shared prod's Neon Auth) with a dedicated Neon project `EndlessWorlds.Staging` (`winter-dew-93819743`): created it, ran migrations 0000–0003 + allowlist seed, enabled Neon Auth via API (`POST /projects/{id}/branches/{br}/auth`, `better_auth`), generated a cookie secret, repointed `develop`-scoped Vercel env at it, added its trusted domain, deleted the orphaned prod-project `staging` branch. `make db-reset-staging` (+ `apps/web/scripts/reset-staging-db.mjs`) wipes `neon_auth` users/sessions **and** app data, hard-guarded to the staging project by name. Verified live. (PR #28; DEV-81 still In Progress — pre-launch walkthrough remains.)
 - **DEV-100 (checkpoint skill):** `.agents/skills/checkpoint/SKILL.md` — on-demand memory-bank→docs→Linear→commit+push. (PR #29, Done.)
@@ -39,9 +43,10 @@ _Last updated: 2026-05-29_
 
 > All work in a worktree (`make worktree-new TICKET=… SLUG=…`) → PR to `develop`. Never edit the root checkout. (See memory `feedback_worktree_flow`.)
 
-1. **M3 finish:** **DEV-59** insights/blog section (still a stub) + **DEV-66** seed articles; **DEV-63/64** copy polish; **DEV-65/SEO** Core Web Vitals → **DEV-80**.
-2. **Portal depth:** **DEV-71** utilities showcase; **DEV-69** RBAC roles; **DEV-72** profile/account settings.
-3. **Invoicing depth (deferred):** **DEV-76** invoice PDF/email; **DEV-77** Stripe.
+1. **Portal — company/billing depth (in flight):** land **DEV-101** (company entity, PR open) + **DEV-102** (auth UX, PR #36); then **DEV-103** accrual (hours×rate / retainer over billing period), **DEV-104** company doc storage, **DEV-105** Drive sync + PDF (↔ DEV-76). Apply migration `0004` to staging/prod at deploy time (manual, like 0000–0003).
+2. **M3 finish:** **DEV-59** insights/blog section (still a stub) + **DEV-66** seed articles; **DEV-63/64** copy polish; **DEV-65/SEO** Core Web Vitals → **DEV-80**.
+3. **Portal depth:** **DEV-71** utilities showcase; **DEV-69** RBAC roles; **DEV-72** profile/account settings.
+4. **Invoicing depth (deferred):** **DEV-76** invoice PDF/email; **DEV-77** Stripe.
 4. **Launch (M6):** **DEV-82** finish (email DNS SPF/DKIM/DMARC, submit sitemap to Google Search Console, uptime/error monitoring); **DEV-78/79/80** cross-browser/a11y, security audit, perf.
 5. **Testing gap:** Vitest/Playwright installed but **no real test suites yet** — CI test step still commented out.
 6. When ready: **ship `develop`→`main`** to push noindex + staging tooling to prod (behavior-neutral).
