@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth/server";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
+import { validatePassword } from "@/lib/auth/password";
 import type { AuthFormState } from "@/app/auth/sign-in/actions";
 
 export async function signUpWithEmail(
@@ -18,10 +19,20 @@ export async function signUpWithEmail(
     return { error: "This email isn't authorized for portal access." };
   }
 
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+  if (password !== confirmPassword) {
+    return { error: "Passwords don't match." };
+  }
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return { error: passwordError };
+  }
+
   const { error } = await auth.signUp.email({
     email,
     name: formData.get("name") as string,
-    password: formData.get("password") as string,
+    password,
   });
 
   if (error) {
