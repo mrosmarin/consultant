@@ -8,6 +8,14 @@
 - **Neon** (serverless Postgres) as the database, accessed via **Drizzle ORM** (client in `apps/web/src/db`). Server-only connection strings never reach the client; use the **pooled** `DATABASE_URL` at runtime and the **unpooled** one for migrations.
 - **Auth: Neon Auth** (built on Better Auth) — users live in the `neon_auth` schema (RLS-compatible). The **portal** is gated by Neon Auth + middleware-protected routes with role-based access control (RBAC, likely via Better Auth's organization/access-control plugins — verify). Timesheets/invoicing are DB-backed CRUD; **payments (Stripe) are a potential add** for invoicing — apply Stripe security best practices (restricted keys, webhooks) if introduced.
 
+### Auth middleware must NOT redirect server actions (DEV-106 — hard-won)
+
+`src/proxy.ts` guards `/account/*` via `auth.middleware({ loginUrl })`. That middleware answers an unauthenticated request with a **307 redirect to the sign-in HTML page**. For a page **navigation (GET)** that's correct. For a **React server action (POST)** it is fatal: the redirect is handed back to React's action dispatcher, which can't parse an HTML redirect and throws **"An unexpected response was received from the server"** on the client — with **no server-side error logged** (so Vercel logs look clean). This silently breaks every portal mutation (onboarding, timesheets, invoices).
+
+**Pattern:** the middleware only guards **GET** (page navigations). All non-GET requests pass through (`NextResponse.next()`); the **server actions self-guard** — every action calls `auth.getSession()` and returns an error state when unauthenticated, so protection is preserved without breaking the RSC response. Never let a redirecting auth middleware run on server-action requests.
+
+> This was latent from DEV-85: timesheet/invoice actions were only ever verified via DB round-trip scripts, never an actual browser form submit, so nothing exercised the real server-action POST until DEV-101 onboarding. **Verify mutations through the real form (or a faithful no-JS action POST), not just a DB script.**
+
 ## Conventions
 
 - **TypeScript everywhere.** Prefer Server Components; use Client Components only where interactivity requires it.
