@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,10 @@ const selectClass =
 
 export function AddTimeEntryForm({ companies }: { companies: CompanyOption[] }) {
   const [state, formAction, pending] = useActionState(addTimeEntry, null);
+  // Controlled so the chosen company persists after submitting — React 19 resets
+  // the (uncontrolled) form fields after a server action, which otherwise cleared
+  // the company picker between consecutive entries for the same client.
+  const [companyId, setCompanyId] = useState("");
 
   if (companies.length === 0) {
     return (
@@ -35,7 +39,14 @@ export function AddTimeEntryForm({ companies }: { companies: CompanyOption[] }) 
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
       <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="companyId">Company</Label>
-        <select id="companyId" name="companyId" required className={selectClass} defaultValue="">
+        <select
+          id="companyId"
+          name="companyId"
+          required
+          className={selectClass}
+          value={companyId}
+          onChange={(e) => setCompanyId(e.target.value)}
+        >
           <option value="" disabled>
             Select a company…
           </option>
