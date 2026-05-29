@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Clock, FileText, LayoutDashboard } from "lucide-react";
+import { Building2, Clock, FileText, LayoutDashboard } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/account", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/account/companies", label: "Companies", icon: Building2 },
   { href: "/account/timesheets", label: "Timesheets", icon: Clock },
   { href: "/account/invoices", label: "Invoices", icon: FileText },
 ];

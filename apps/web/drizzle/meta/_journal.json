@@ -29,6 +29,13 @@
       "when": 1779836195890,
       "tag": "0003_bent_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780078554076,
+      "tag": "0004_bumpy_synch",
+      "breakpoints": true
     }
   ]
 }
