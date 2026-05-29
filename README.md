@@ -2,7 +2,7 @@
 
 The full build of **endlessworlds.xyz** for **EndlessWorlds, LLC** — a public consulting marketing site (services, insights, lead-gen) plus an authenticated secure portal (dashboard, timesheets, invoicing, project showcase).
 
-> Status (M3 — Content/SEO/Analytics): foundation + public marketing site + full secure portal (auth, dashboard, **timesheets**, **invoicing**) are live in production. Portal access is restricted to an **email allowlist** (`allowed_emails`) with a Sign-in link in the header/footer (DEV-98). SEO (Metadata API, JSON-LD, `sitemap.xml`, `robots.txt`, OG image — DEV-65) is live; **Google Analytics 4** is wired behind a cookie-consent banner (DEV-67) — set `NEXT_PUBLIC_GA_ID` to activate. **Live:** https://endlessworlds-web.vercel.app. Next: copy polish, insights/blog. Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
+> Status (M3 — Content/SEO/Analytics): **Live at https://endlessworlds.xyz** — public marketing site + full secure portal (auth + **email allowlist**, dashboard, **timesheets**, **invoicing**), SEO (Metadata API, JSON-LD, sitemap, robots, OG image — DEV-65), and **Google Analytics 4** behind a cookie-consent banner (DEV-67, active). Isolated **staging/QA** at https://staging.endlessworlds.xyz (own Neon project + auth; `make db-reset-staging` for clean E2E). Next: copy polish (DEV-63/64), insights/blog (DEV-59/66). Deferred: invoice PDF/email (DEV-76), Stripe (DEV-77).
 
 ## Stack
 
