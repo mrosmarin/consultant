@@ -62,7 +62,7 @@ _Last updated: 2026-05-29_
 
 ## Current status
 
-**M1/M2/M4/M5 live in production at https://endlessworlds.xyz; on M3 + launch hardening.** SEO + GA4 live in prod; custom domain live; isolated staging/QA env live (resettable via `make db-reset-staging`). `develop` is ahead of `main` by noindex (DEV-99) + staging tooling (DEV-81) + checkpoint skill (DEV-100) — prod-behavior-neutral, release when convenient. **Resume:** M3 — insights/blog (DEV-59/66) or copy polish (DEV-63/64). Bigger gaps: utilities showcase (DEV-71), RBAC (DEV-69), and a real test suite (no automated coverage yet).
+**M1/M2/M4/M5 live in production at https://endlessworlds.xyz; on M3 + launch hardening.** SEO + GA4 live in prod; custom domain live; isolated staging/QA env live (resettable via `make db-reset-staging`). **`develop` and `main` are in sync at `cf7f8ba`** — noindex (DEV-99) + staging tooling (DEV-81) + checkpoint skill (DEV-100) shipped to prod via PR #34 (2026-05-29); local git cleaned (merged feature branches deleted, refs pruned). **Resume:** M3 — insights/blog (DEV-59/66) or copy polish (DEV-63/64). Bigger gaps: utilities showcase (DEV-71), RBAC (DEV-69), and a real test suite (no automated coverage yet).
 
 ## Known issues
 
