@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth/server";
 
 import { deleteCompany } from "./actions";
 import { CompanyForm } from "./company-form";
+import { GenerateInvoiceButton } from "./generate-invoice-button";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,8 @@ export default async function CompaniesPage() {
                     </td>
                     <td className="px-4 py-2">{FREQUENCY_LABEL[r.billingFrequency] ?? r.billingFrequency}</td>
                     <td className="px-4 py-2 text-right">
-                      <div className="flex justify-end gap-3">
+                      <div className="flex items-center justify-end gap-3">
+                        <GenerateInvoiceButton companyId={r.id} size="sm" />
                         <Link
                           href={`/account/companies/${r.id}/edit`}
                           className="text-muted-foreground hover:text-foreground text-xs"

@@ -51,6 +51,9 @@ export const companies = pgTable("companies", {
   retainerAmount: numeric("retainer_amount", { precision: 12, scale: 2 }),
   billingFrequency: text("billing_frequency").notNull().default("monthly"),
   billingAnchorDay: integer("billing_anchor_day"),
+  // Prefix for generated invoice numbers (e.g. "ACME" → ACME-0001). Suggested
+  // from the name at onboarding; editable.
+  invoicePrefix: text("invoice_prefix"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
@@ -71,6 +74,10 @@ export const timeEntries = pgTable("time_entries", {
   client: text("client"),
   hours: numeric("hours", { precision: 5, scale: 2 }).notNull(),
   notes: text("notes"),
+  // Set when an entry is rolled into a generated invoice, so it isn't billed
+  // twice. billed_invoice_id points at that invoice (no hard FK ordering needs).
+  billedAt: timestamp("billed_at", { withTimezone: true }),
+  billedInvoiceId: uuid("billed_invoice_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });

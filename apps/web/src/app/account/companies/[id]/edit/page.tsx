@@ -8,6 +8,7 @@ import { companies } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
 import { CompanyForm } from "../../company-form";
+import { GenerateInvoiceButton } from "../../generate-invoice-button";
 
 export const dynamic = "force-dynamic";
 
@@ -61,8 +62,24 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
               retainerAmount: company.retainerAmount,
               billingFrequency: company.billingFrequency,
               billingAnchorDay: company.billingAnchorDay,
+              invoicePrefix: company.invoicePrefix,
             }}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Billing</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-muted-foreground text-sm">
+            Generate a draft invoice for the latest completed billing period
+            {company.billingType === "hourly"
+              ? " from this company's unbilled time."
+              : " for the retainer amount."}
+          </p>
+          <GenerateInvoiceButton companyId={company.id} />
         </CardContent>
       </Card>
     </div>

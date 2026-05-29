@@ -33,6 +33,7 @@ export default async function InvoicesPage() {
         invoiceNumber: invoices.invoiceNumber,
         client: invoices.client,
         companyName: companies.name,
+        notes: invoices.notes,
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
         amount: invoices.amount,
@@ -82,7 +83,12 @@ export default async function InvoicesPage() {
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t">
                     <td className="px-4 py-2 font-mono text-xs">{r.invoiceNumber}</td>
-                    <td className="px-4 py-2">{r.companyName ?? r.client ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      {r.companyName ?? r.client ?? "—"}
+                      {r.notes ? (
+                        <span className="text-muted-foreground block text-xs">{r.notes}</span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs">{r.issueDate}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
                     <td className="px-4 py-2 text-right font-mono">{usd.format(Number(r.amount))}</td>
