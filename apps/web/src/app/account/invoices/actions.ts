@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { companies, invoices, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
+import { companies, invoices, timeEntries, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { buildInvoiceDraft } from "@/lib/invoicing";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
 
@@ -36,7 +37,7 @@ export async function createInvoice(
 
   // Verify the company is one the signed-in user owns (not soft-deleted).
   const [company] = await db
-    .select({ id: companies.id })
+    .select()
     .from(companies)
     .where(
       and(
@@ -48,16 +49,35 @@ export async function createInvoice(
     .limit(1);
   if (!company) return { ok: false, error: "Pick one of your companies." };
 
-  await db.insert(invoices).values({
-    userId: session.user.id,
-    companyId,
-    invoiceNumber,
-    issueDate,
-    dueDate,
-    amount: amount.toFixed(2),
-    notes,
-  });
+  // The form is an editable "Generate": the invoice carries the (possibly edited)
+  // form values, but for an hourly company we still bill the underlying unbilled
+  // hours so the same time can't be invoiced twice (consistent with the Generate
+  // button). The draft tells us which entries to stamp.
+  const draft = await buildInvoiceDraft(company, session.user.id);
+
+  const [invoice] = await db
+    .insert(invoices)
+    .values({
+      userId: session.user.id,
+      companyId,
+      invoiceNumber,
+      issueDate,
+      dueDate,
+      amount: amount.toFixed(2),
+      status: "draft",
+      notes,
+    })
+    .returning({ id: invoices.id });
+
+  if (draft.billedEntryIds.length > 0) {
+    await db
+      .update(timeEntries)
+      .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
+      .where(inArray(timeEntries.id, draft.billedEntryIds));
+  }
+
   revalidatePath("/account/invoices");
+  revalidatePath("/account/companies");
   revalidatePath("/account");
   return { ok: true };
 }

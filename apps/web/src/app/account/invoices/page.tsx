@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies, invoices, INVOICE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { listCompanyOptions } from "@/lib/companies";
+import { buildInvoiceDraft } from "@/lib/invoicing";
 
 import { deleteInvoice, updateInvoiceStatus } from "./actions";
-import { AddInvoiceForm } from "./add-invoice-form";
+import { AddInvoiceForm, type InvoicePrefill } from "./add-invoice-form";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +25,12 @@ export default async function InvoicesPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
 
-  const [companyOptions, rows] = await Promise.all([
-    listCompanyOptions(session.user.id),
+  const [companyRows, rows] = await Promise.all([
+    db
+      .select()
+      .from(companies)
+      .where(and(eq(companies.userId, session.user.id), isNull(companies.deletedAt)))
+      .orderBy(asc(companies.name)),
     db
       .select({
         id: invoices.id,
@@ -45,6 +49,25 @@ export default async function InvoicesPage() {
       .orderBy(desc(invoices.issueDate), desc(invoices.createdAt)),
   ]);
 
+  // Pre-compute the auto-fill suggestion for each company so selecting one in the
+  // form fills the number/amount/dates/notes with no extra round-trip.
+  const prefills: InvoicePrefill[] = await Promise.all(
+    companyRows.map(async (c) => {
+      const d = await buildInvoiceDraft(c, session.user.id);
+      return {
+        id: c.id,
+        name: c.name,
+        invoiceNumber: d.invoiceNumber,
+        amount: d.amount,
+        issueDate: d.issueDate,
+        dueDate: d.dueDate,
+        notes: d.notes,
+        hours: d.hours,
+        billingType: c.billingType,
+      };
+    }),
+  );
+
   return (
     <div className="space-y-8">
       <div>
@@ -57,7 +80,7 @@ export default async function InvoicesPage() {
           <CardTitle className="text-base">New invoice</CardTitle>
         </CardHeader>
         <CardContent>
-          <AddInvoiceForm companies={companyOptions} />
+          <AddInvoiceForm prefills={prefills} />
         </CardContent>
       </Card>
 
