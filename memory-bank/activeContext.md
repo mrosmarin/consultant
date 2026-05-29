@@ -2,7 +2,7 @@
 
 _Last updated: 2026-05-29_
 
-> **CHECKPOINT 2026-05-29 (pre devcontainer rebuild).** Everything below is merged to `develop` + pushed. Prod + isolated staging/QA are live. **Resume at: M3 remaining — insights/blog (DEV-59/66) or copy polish (DEV-63/64).** See "Next steps". After rebuild, re-add `.devcontainer/.env` (keys listed in the resume card).
+> **CHECKPOINT 2026-05-29 (pre devcontainer rebuild).** Everything below is merged to `develop` + pushed, and **`develop` is now fully released to `main` (PR #34) — `develop` and `main` are identical (`cf7f8ba`), zero divergence.** Prod + isolated staging/QA are live. Local git cleaned up: all merged feature branches deleted, stale remote refs pruned. **Resume at: M3 remaining — insights/blog (DEV-59/66) or copy polish (DEV-63/64).** See "Next steps". After rebuild, re-add `.devcontainer/.env` (keys listed in the resume card).
 
 ## Current focus
 
@@ -17,10 +17,11 @@ _Last updated: 2026-05-29_
 - **Staging/QA** — `develop` → `staging.endlessworlds.xyz`. **Dedicated Neon project `EndlessWorlds.Staging` = `winter-dew-93819743`** (own DB **and** own Neon Auth) → logins + data fully isolated from prod. Wired via `develop`-branch-scoped Vercel env (`DATABASE_URL`/`_UNPOOLED`/`NEON_AUTH_BASE_URL`/`NEON_AUTH_COOKIE_SECRET`). `noindex`; Vercel SSO/deploy-protection OFF (so all previews are public). Reset: `make db-reset-staging`.
 - **PR previews** (non-`develop`) — prod project's `preview` Neon branch (shares prod auth). Only `develop`/staging gets the isolated project.
 - **DNS:** registrar **Hover**, Hover nameservers. Vercel hosts the records.
-- **`develop` is ahead of `main`** by DEV-99 (noindex), DEV-81 (staging tooling), DEV-100 (checkpoint skill) — all prod-behavior-neutral, so no rush to release. Say "ship to prod" to cut a `develop`→`main` release.
+- **`develop` and `main` are in sync** (`cf7f8ba`) — DEV-99 (noindex), DEV-81 (staging tooling), DEV-100 (checkpoint skill) shipped to prod via PR #34 (2026-05-29), then `main` back-merged into `develop`. Next release: branch a `feature/dev-XXX-*` off `develop` → PR to `develop` → when ready, PR `develop`→`main`.
 
 ## Recent changes (newest first; deduped at the 2026-05-29 checkpoint)
 
+- **Release + git cleanup (2026-05-29):** Shipped `develop`→`main` via **PR #34** (noindex DEV-99, staging/QA DEV-81, checkpoint skill DEV-100, checkpoint state) — all prod-behavior-neutral; `main` back-merged into `develop` so both are identical at `cf7f8ba`. Cleaned local git: deleted 8 merged feature branches (all verified against merged PRs #20/#22/#24/#25/#27/#28/#29/#30), pruned stale `: gone` remote refs. Only `develop` + `main` remain.
 - **DEV-81 (isolated staging/QA — separate Neon project):** Replaced branch-based staging (which shared prod's Neon Auth) with a dedicated Neon project `EndlessWorlds.Staging` (`winter-dew-93819743`): created it, ran migrations 0000–0003 + allowlist seed, enabled Neon Auth via API (`POST /projects/{id}/branches/{br}/auth`, `better_auth`), generated a cookie secret, repointed `develop`-scoped Vercel env at it, added its trusted domain, deleted the orphaned prod-project `staging` branch. `make db-reset-staging` (+ `apps/web/scripts/reset-staging-db.mjs`) wipes `neon_auth` users/sessions **and** app data, hard-guarded to the staging project by name. Verified live. (PR #28; DEV-81 still In Progress — pre-launch walkthrough remains.)
 - **DEV-100 (checkpoint skill):** `.agents/skills/checkpoint/SKILL.md` — on-demand memory-bank→docs→Linear→commit+push. (PR #29, Done.)
 - **DEV-99 (noindex non-prod):** `isProd = VERCEL_ENV === "production"` in `src/lib/site.ts`; `robots.ts` → `Disallow: /` and `metadata.robots` → `noindex,nofollow` on non-prod. Verified live on staging; prod indexable. (PR #27, Done.)
