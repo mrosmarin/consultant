@@ -41,6 +41,7 @@ export default async function InvoicesPage() {
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
         subtotal: invoices.subtotal,
+        discountAmount: invoices.discountAmount,
         taxLabel: invoices.taxLabel,
         taxAmount: invoices.taxAmount,
         amount: invoices.amount,
@@ -73,6 +74,8 @@ export default async function InvoicesPage() {
           description: l.description,
           quantity: l.quantity,
           unitAmount: l.unitAmount,
+          sourceType: l.sourceType,
+          sourceId: l.sourceId,
         })),
       };
     }),
@@ -146,10 +149,15 @@ export default async function InvoicesPage() {
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
                     <td className="px-4 py-2 text-right font-mono">
                       {usd.format(Number(r.amount))}
-                      {Number(r.taxAmount ?? 0) > 0 ? (
+                      {Number(r.discountAmount ?? 0) > 0 || Number(r.taxAmount ?? 0) > 0 ? (
                         <span className="text-muted-foreground block text-xs font-normal">
-                          {usd.format(Number(r.subtotal ?? 0))} + {r.taxLabel ?? "tax"}{" "}
-                          {usd.format(Number(r.taxAmount))}
+                          {usd.format(Number(r.subtotal ?? 0))}
+                          {Number(r.discountAmount ?? 0) > 0
+                            ? ` − ${usd.format(Number(r.discountAmount))} disc`
+                            : ""}
+                          {Number(r.taxAmount ?? 0) > 0
+                            ? ` + ${r.taxLabel ?? "tax"} ${usd.format(Number(r.taxAmount))}`
+                            : ""}
                         </span>
                       ) : null}
                     </td>

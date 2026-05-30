@@ -10,7 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { createInvoice } from "./actions";
 
-export type PrefillLine = { description: string; quantity: string; unitAmount: string };
+export type PrefillLine = {
+  description: string;
+  quantity: string;
+  unitAmount: string;
+  sourceType: string | null;
+  sourceId: string | null;
+};
 
 export type InvoicePrefill = {
   id: string;
@@ -27,22 +33,36 @@ export type InvoicePrefill = {
   taxExempt: boolean;
 };
 
-type Row = { description: string; quantity: string; unitAmount: string };
+type Row = {
+  description: string;
+  quantity: string;
+  unitAmount: string;
+  sourceType: string | null;
+  sourceId: string | null;
+};
 
 const selectClass =
   "border-input bg-background h-9 rounded-md border px-2 text-sm focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-1";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-const blankRow = (): Row => ({ description: "", quantity: "1", unitAmount: "" });
+const blankRow = (): Row => ({
+  description: "",
+  quantity: "1",
+  unitAmount: "",
+  sourceType: "manual",
+  sourceId: null,
+});
 const lineTotal = (r: Row) => (Number(r.quantity) || 0) * (Number(r.unitAmount) || 0);
 
 const EMPTY = { invoiceNumber: "", issueDate: "", dueDate: "", notes: "" };
+const NO_DISCOUNT = { type: "none", value: "" };
 
 export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
   const [state, formAction, pending] = useActionState(createInvoice, null);
   const [companyId, setCompanyId] = useState("");
   const [fields, setFields] = useState(EMPTY);
   const [rows, setRows] = useState<Row[]>([blankRow()]);
+  const [discount, setDiscount] = useState(NO_DISCOUNT);
 
   if (prefills.length === 0) {
     return (
@@ -76,9 +96,12 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
             description: l.description,
             quantity: l.quantity,
             unitAmount: l.unitAmount,
+            sourceType: l.sourceType,
+            sourceId: l.sourceId,
           }))
         : [blankRow()],
     );
+    setDiscount(NO_DISCOUNT);
   };
 
   const setField = (k: keyof typeof EMPTY) => (e: { target: { value: string } }) =>
@@ -90,23 +113,36 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
 
   const selected = prefills.find((p) => p.id === companyId);
   const subtotal = rows.reduce((sum, r) => sum + lineTotal(r), 0);
-  // Mirror the server's computeTax for a live preview; the server value is
-  // authoritative on submit.
+  // Mirror the server's computeInvoiceTotals for a live preview (discount before
+  // tax); the server value is authoritative on submit.
+  const discountValueNum = Number(discount.value) || 0;
+  const rawDiscount =
+    discount.type === "percent"
+      ? (subtotal * discountValueNum) / 100
+      : discount.type === "fixed"
+        ? discountValueNum
+        : 0;
+  const discountAmount = Math.min(Math.max(Math.round(rawDiscount * 100) / 100, 0), subtotal);
+  const discounted = subtotal - discountAmount;
   const taxRateNum = selected && !selected.taxExempt ? Number(selected.taxRate ?? 0) : 0;
   const taxApplies = taxRateNum > 0;
-  const taxAmount = taxApplies ? Math.round(subtotal * taxRateNum) / 100 : 0;
-  const grandTotal = subtotal + taxAmount;
+  const taxAmount = taxApplies ? Math.round(discounted * taxRateNum) / 100 : 0;
+  const grandTotal = discounted + taxAmount;
   const lineItemsJson = JSON.stringify(
     rows.map((r) => ({
       description: r.description,
       quantity: Number(r.quantity) || 0,
       unitAmount: Number(r.unitAmount) || 0,
+      sourceType: r.sourceType,
+      sourceId: r.sourceId,
     })),
   );
 
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="lineItems" value={lineItemsJson} />
+      <input type="hidden" name="discountType" value={discount.type} />
+      <input type="hidden" name="discountValue" value={discount.value} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2 sm:col-span-2">
@@ -229,6 +265,15 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
                 <td className="px-3 py-2 text-right font-mono">{usd.format(subtotal)}</td>
                 <td />
               </tr>
+              {discountAmount > 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-3 py-2 text-right text-sm">
+                    Discount{discount.type === "percent" ? ` (${discountValueNum}%)` : ""}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">−{usd.format(discountAmount)}</td>
+                  <td />
+                </tr>
+              ) : null}
               {taxApplies ? (
                 <tr>
                   <td colSpan={3} className="px-3 py-2 text-right text-sm">
@@ -253,6 +298,37 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
         <Button type="button" variant="outline" size="sm" onClick={addRow}>
           + Add line
         </Button>
+      </div>
+
+      <div className="grid gap-2 sm:max-w-sm">
+        <Label>Discount (optional)</Label>
+        <div className="flex gap-2">
+          <select
+            className={selectClass}
+            value={discount.type}
+            onChange={(e) =>
+              setDiscount((d) => ({ ...d, type: e.target.value, value: e.target.value === "none" ? "" : d.value }))
+            }
+            aria-label="Discount type"
+          >
+            <option value="none">No discount</option>
+            <option value="percent">Percent (%)</option>
+            <option value="fixed">Fixed ($)</option>
+          </select>
+          {discount.type !== "none" ? (
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max={discount.type === "percent" ? "100" : undefined}
+              value={discount.value}
+              onChange={(e) => setDiscount((d) => ({ ...d, value: e.target.value }))}
+              placeholder={discount.type === "percent" ? "e.g. 10" : "e.g. 50.00"}
+              className="max-w-32"
+            />
+          ) : null}
+        </div>
+        <p className="text-muted-foreground text-xs">Applied to the subtotal before tax.</p>
       </div>
 
       <div className="grid gap-2">

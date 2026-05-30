@@ -6,13 +6,27 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, invoices, timeEntries, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { buildInvoiceDraft, computeTax, insertInvoiceLineItems, type DraftLineItem } from "@/lib/invoicing";
+import {
+  buildInvoiceDraft,
+  computeInvoiceTotals,
+  insertInvoiceLineItems,
+  type DiscountInput,
+  type DraftLineItem,
+} from "@/lib/invoicing";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
 
-type ParsedLine = { description: string; quantity: number; unitAmount: number };
+type ParsedLine = {
+  description: string;
+  quantity: number;
+  unitAmount: number;
+  sourceType: string | null;
+  sourceId: string | null;
+};
 
-// Parse + validate the line-items JSON submitted by the form.
+// Parse + validate the line-items JSON submitted by the form. Each line may
+// carry sourceType/sourceId (a time entry it came from) — used for partial
+// billing: only the entries whose lines survive get stamped billed.
 function parseLineItems(raw: string): { lines: ParsedLine[] } | { error: string } {
   let arr: unknown;
   try {
@@ -25,9 +39,10 @@ function parseLineItems(raw: string): { lines: ParsedLine[] } | { error: string 
   }
   const lines: ParsedLine[] = [];
   for (const item of arr) {
-    const description = String((item as ParsedLine)?.description ?? "").trim();
-    const quantity = Number((item as ParsedLine)?.quantity);
-    const unitAmount = Number((item as ParsedLine)?.unitAmount);
+    const row = item as Record<string, unknown>;
+    const description = String(row?.description ?? "").trim();
+    const quantity = Number(row?.quantity);
+    const unitAmount = Number(row?.unitAmount);
     if (!description) return { error: "Every line item needs a description." };
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return { error: "Line quantities must be positive numbers." };
@@ -35,9 +50,27 @@ function parseLineItems(raw: string): { lines: ParsedLine[] } | { error: string 
     if (!Number.isFinite(unitAmount) || unitAmount < 0) {
       return { error: "Line rates must be non-negative numbers." };
     }
-    lines.push({ description, quantity, unitAmount });
+    const sourceType = row?.sourceType ? String(row.sourceType) : null;
+    const sourceId = row?.sourceId ? String(row.sourceId) : null;
+    lines.push({ description, quantity, unitAmount, sourceType, sourceId });
   }
   return { lines };
+}
+
+// Parse the optional invoice-level discount from the form.
+function parseDiscount(
+  typeRaw: string,
+  valueRaw: string,
+): { discount: DiscountInput } | { error: string } {
+  if ((typeRaw !== "percent" && typeRaw !== "fixed") || !valueRaw) return { discount: null };
+  const value = Number(valueRaw);
+  if (!Number.isFinite(value) || value < 0) {
+    return { error: "Discount must be a non-negative number." };
+  }
+  if (typeRaw === "percent" && value > 100) {
+    return { error: "A percentage discount can't exceed 100%." };
+  }
+  return { discount: value > 0 ? { type: typeRaw, value } : null };
 }
 
 export async function createInvoice(
@@ -64,14 +97,21 @@ export async function createInvoice(
   const parsed = parseLineItems(lineItemsRaw);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  // Total is derived server-side from the lines (never trust a client total).
+  const discountParsed = parseDiscount(
+    ((formData.get("discountType") as string) ?? "").trim(),
+    ((formData.get("discountValue") as string) ?? "").trim(),
+  );
+  if ("error" in discountParsed) return { ok: false, error: discountParsed.error };
+
+  // Line totals are derived server-side (never trust a client total). Each line
+  // keeps its source (a time entry) so partial billing can stamp only those.
   const lines: DraftLineItem[] = parsed.lines.map((l) => ({
     description: l.description,
     quantity: l.quantity.toFixed(2),
     unitAmount: l.unitAmount.toFixed(2),
     lineTotal: (l.quantity * l.unitAmount).toFixed(2),
-    sourceType: "manual",
-    sourceId: null,
+    sourceType: l.sourceType ?? "manual",
+    sourceId: l.sourceId,
   }));
   const subtotal = lines.reduce((sum, l) => sum + Number(l.lineTotal), 0);
   if (subtotal <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
@@ -95,9 +135,9 @@ export async function createInvoice(
   // so the same time can't be invoiced twice. The draft tells us which to stamp.
   const draft = await buildInvoiceDraft(company, session.user.id);
 
-  // Tax is snapshotted from the company onto the invoice (DEV-116), applied to
-  // the (possibly edited) line subtotal — never trusted from the client.
-  const tax = computeTax(subtotal, company);
+  // Discount (before tax) and tax are snapshotted onto the invoice from the
+  // line subtotal + company config — never trusted from the client (DEV-116/118).
+  const totals = computeInvoiceTotals(subtotal, company, discountParsed.discount);
 
   const [invoice] = await db
     .insert(invoices)
@@ -107,11 +147,14 @@ export async function createInvoice(
       invoiceNumber,
       issueDate,
       dueDate,
-      subtotal: tax.subtotal,
-      taxRate: tax.taxRate,
-      taxLabel: tax.taxLabel,
-      taxAmount: tax.taxAmount,
-      amount: tax.total,
+      subtotal: totals.subtotal,
+      discountType: totals.discountType,
+      discountValue: totals.discountValue,
+      discountAmount: totals.discountAmount,
+      taxRate: totals.taxRate,
+      taxLabel: totals.taxLabel,
+      taxAmount: totals.taxAmount,
+      amount: totals.amount,
       status: "draft",
       notes,
     })
@@ -119,11 +162,18 @@ export async function createInvoice(
 
   await insertInvoiceLineItems(session.user.id, invoice.id, lines);
 
-  if (draft.billedEntryIds.length > 0) {
+  // Partial billing (DEV-118): stamp ONLY the time entries whose lines made it
+  // onto this invoice — and only ones the draft says are legitimately billable
+  // (guards against a tampered sourceId). Dropping a time line leaves it unbilled.
+  const draftIds = new Set(draft.billedEntryIds);
+  const billedIds = lines
+    .filter((l) => l.sourceType === "time" && l.sourceId && draftIds.has(l.sourceId))
+    .map((l) => l.sourceId as string);
+  if (billedIds.length > 0) {
     await db
       .update(timeEntries)
       .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
-      .where(inArray(timeEntries.id, draft.billedEntryIds));
+      .where(inArray(timeEntries.id, billedIds));
   }
 
   revalidatePath("/account/invoices");

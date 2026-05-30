@@ -163,6 +163,13 @@ export const invoices = pgTable("invoices", {
   // amount = subtotal + tax_amount (the grand total — kept authoritative for
   // back-compat). Pre-tax invoices have subtotal = amount and tax_amount = 0.
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }),
+  // Invoice-level discount (DEV-118). discount_type is "percent" | "fixed" | null;
+  // discount_value is the entered percent or fixed amount; discount_amount is the
+  // computed dollar discount. Applied to the subtotal BEFORE tax, so:
+  // amount = (subtotal − discount_amount) + tax_amount.
+  discountType: text("discount_type"),
+  discountValue: numeric("discount_value", { precision: 12, scale: 3 }),
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }),
   taxRate: numeric("tax_rate", { precision: 6, scale: 3 }),
   taxLabel: text("tax_label"),
   taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }),
