@@ -259,3 +259,36 @@ export const companyMilestones = pgTable("company_milestones", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
+
+export const EXPENSE_CATEGORIES = [
+  "Travel",
+  "Meals",
+  "Lodging",
+  "Software",
+  "Hardware",
+  "Subcontractor",
+  "Other",
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+// Reimbursable/non-reimbursable expenses logged against a client (and optional
+// project) — DEV-123. Billable unbilled expenses are pulled into an invoice as
+// line items and stamped billed (billed_at + billed_invoice_id), mirroring time
+// entries. receipt_key points at a stored receipt file (DEV-104 storage; the
+// upload UI lands with that ticket). Owner-scoped + RLS + soft-delete.
+export const expenses = pgTable("expenses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  projectId: uuid("project_id"),
+  expenseDate: date("expense_date").notNull(),
+  category: text("category").notNull().default("Other"),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  billable: boolean("billable").notNull().default(true),
+  notes: text("notes"),
+  receiptKey: text("receipt_key"),
+  billedAt: timestamp("billed_at", { withTimezone: true }),
+  billedInvoiceId: uuid("billed_invoice_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
