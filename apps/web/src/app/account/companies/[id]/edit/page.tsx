@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { companies } from "@/db/schema";
+import { companies, companyContacts } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
 import { CompanyForm } from "../../company-form";
+import { CompanyContacts } from "../../company-contacts";
 import { GenerateInvoiceButton } from "../../generate-invoice-button";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,25 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
     .limit(1);
 
   if (!company) notFound();
+
+  const contacts = await db
+    .select({
+      id: companyContacts.id,
+      name: companyContacts.name,
+      email: companyContacts.email,
+      phone: companyContacts.phone,
+      role: companyContacts.role,
+      isPrimary: companyContacts.isPrimary,
+    })
+    .from(companyContacts)
+    .where(
+      and(
+        eq(companyContacts.companyId, company.id),
+        eq(companyContacts.userId, session.user.id),
+        isNull(companyContacts.deletedAt),
+      ),
+    )
+    .orderBy(asc(companyContacts.name));
 
   return (
     <div className="space-y-8">
@@ -66,6 +86,15 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
               invoicePrefix: company.invoicePrefix,
             }}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Contacts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CompanyContacts companyId={company.id} contacts={contacts} />
         </CardContent>
       </Card>
 

@@ -7,6 +7,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   companies,
+  companyContacts,
   invoices,
   timeEntries,
   BILLING_TYPES,
@@ -133,7 +134,21 @@ export async function saveCompany(_prev: CompanyState, formData: FormData): Prom
     redirect("/account/companies");
   }
 
-  await db.insert(companies).values({ userId: session.user.id, ...parsed.values });
+  const [created] = await db
+    .insert(companies)
+    .values({ userId: session.user.id, ...parsed.values })
+    .returning({ id: companies.id });
+  // Seed the onboarding contact as the company's primary contact (DEV-110), so
+  // the contacts list and the legacy single-contact fields stay in sync.
+  if (created && (parsed.values.contactName || parsed.values.contactEmail)) {
+    await db.insert(companyContacts).values({
+      userId: session.user.id,
+      companyId: created.id,
+      name: parsed.values.contactName ?? parsed.values.contactEmail ?? "Primary contact",
+      email: parsed.values.contactEmail,
+      isPrimary: true,
+    });
+  }
   revalidatePath("/account/companies");
   revalidatePath("/account");
   return { ok: true };
