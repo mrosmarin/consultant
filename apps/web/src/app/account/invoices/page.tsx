@@ -175,6 +175,14 @@ export default async function InvoicesPage() {
                       >
                         Public link ↗
                       </a>
+                      <a
+                        href={`/invoice/${r.publicToken}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand block text-xs font-normal hover:underline"
+                      >
+                        PDF ↓
+                      </a>
                     </td>
                     <td className="px-4 py-2">
                       {r.companyName ?? r.client ?? "—"}

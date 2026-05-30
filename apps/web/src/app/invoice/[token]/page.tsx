@@ -80,6 +80,9 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             <p className="font-medium">{inv.companyName ?? "—"}</p>
             <p className="text-muted-foreground">Issued {inv.issueDate}</p>
             <p className="text-muted-foreground">Due {inv.dueDate}</p>
+            <a href={`/invoice/${token}/pdf`} className="text-brand text-xs hover:underline">
+              Download PDF ↓
+            </a>
           </div>
         </div>
 
