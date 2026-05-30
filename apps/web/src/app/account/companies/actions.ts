@@ -8,6 +8,7 @@ import { db } from "@/db";
 import {
   companies,
   companyContacts,
+  companyMilestones,
   invoices,
   timeEntries,
   BILLING_TYPES,
@@ -17,7 +18,8 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { suggestInvoicePrefix } from "@/lib/billing";
-import { buildInvoiceDraft } from "@/lib/invoicing";
+import { buildInvoiceDraft, insertInvoiceLineItems } from "@/lib/invoicing";
+import { DEFAULT_CURRENCY, isCurrency } from "@/lib/money";
 
 export type CompanyState = { ok: boolean; error?: string } | null;
 
@@ -30,10 +32,15 @@ type ParsedCompany = {
   billingType: BillingType;
   hourlyRate: string | null;
   retainerAmount: string | null;
+  fixedAmount: string | null;
   billingFrequency: BillingFrequency;
   billingAnchorDay: number | null;
   paymentTermsDays: number;
   invoicePrefix: string;
+  currency: string;
+  taxRate: string | null;
+  taxLabel: string | null;
+  taxExempt: boolean;
 };
 
 function parseCompany(formData: FormData): { values: ParsedCompany } | { error: string } {
@@ -46,16 +53,24 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
   const billingFrequency = (formData.get("billingFrequency") as string)?.trim() as BillingFrequency;
   const rateRaw = ((formData.get("hourlyRate") as string) ?? "").trim();
   const retainerRaw = ((formData.get("retainerAmount") as string) ?? "").trim();
+  const fixedRaw = ((formData.get("fixedAmount") as string) ?? "").trim();
   const anchorRaw = ((formData.get("billingAnchorDay") as string) ?? "").trim();
   const prefixRaw = ((formData.get("invoicePrefix") as string) ?? "").trim();
   const termsRaw = ((formData.get("paymentTermsDays") as string) ?? "").trim();
+  const taxRateRaw = ((formData.get("taxRate") as string) ?? "").trim();
+  const taxLabel = ((formData.get("taxLabel") as string) ?? "").trim() || null;
+  const taxExempt = formData.get("taxExempt") === "on" || formData.get("taxExempt") === "true";
+  const currencyRaw = ((formData.get("currency") as string) ?? "").trim().toUpperCase();
+  const currency = currencyRaw ? (isCurrency(currencyRaw) ? currencyRaw : "") : DEFAULT_CURRENCY;
 
   if (!name) return { error: "Company name is required." };
+  if (!currency) return { error: "Pick a supported currency." };
   if (!BILLING_TYPES.includes(billingType)) return { error: "Pick a billing type." };
   if (!BILLING_FREQUENCIES.includes(billingFrequency)) return { error: "Pick a billing frequency." };
 
   let hourlyRate: string | null = null;
   let retainerAmount: string | null = null;
+  let fixedAmount: string | null = null;
 
   if (billingType === "hourly") {
     const rate = Number(rateRaw);
@@ -63,13 +78,21 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
       return { error: "An hourly rate greater than 0 is required for hourly billing." };
     }
     hourlyRate = rate.toFixed(2);
-  } else {
+  } else if (billingType === "retainer") {
     const retainer = Number(retainerRaw);
     if (!retainerRaw || !Number.isFinite(retainer) || retainer <= 0) {
       return { error: "A retainer amount greater than 0 is required for retainer billing." };
     }
     retainerAmount = retainer.toFixed(2);
+  } else if (billingType === "fixed") {
+    const fixed = Number(fixedRaw);
+    if (!fixedRaw || !Number.isFinite(fixed) || fixed <= 0) {
+      return { error: "A fixed fee greater than 0 is required for fixed-fee billing." };
+    }
+    fixedAmount = fixed.toFixed(2);
   }
+  // billingType === "milestone": amounts come from the milestone schedule
+  // (managed separately on the company), so no amount field is required here.
 
   let billingAnchorDay: number | null = null;
   if (anchorRaw) {
@@ -95,6 +118,16 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
   const cleanedPrefix = prefixRaw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
   const invoicePrefix = cleanedPrefix || suggestInvoicePrefix(name);
 
+  // Optional default tax rate (percent, 0–100). Blank = no rate.
+  let taxRate: string | null = null;
+  if (taxRateRaw) {
+    const r = Number(taxRateRaw);
+    if (!Number.isFinite(r) || r < 0 || r > 100) {
+      return { error: "Tax rate must be a percentage between 0 and 100." };
+    }
+    taxRate = String(r);
+  }
+
   return {
     values: {
       name,
@@ -105,10 +138,15 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
       billingType,
       hourlyRate,
       retainerAmount,
+      fixedAmount,
       billingFrequency,
       billingAnchorDay,
       paymentTermsDays,
       invoicePrefix,
+      currency,
+      taxRate,
+      taxLabel,
+      taxExempt,
     },
   };
 }
@@ -205,10 +243,16 @@ export async function generateInvoice(
   if (company.billingType === "retainer" && !company.retainerAmount) {
     return { ok: false, error: "Set a retainer amount on the company first." };
   }
+  if (company.billingType === "fixed" && !company.fixedAmount) {
+    return { ok: false, error: "Set a fixed fee on the company first." };
+  }
 
   const draft = await buildInvoiceDraft(company, session.user.id);
   if (company.billingType === "hourly" && draft.hours <= 0) {
     return { ok: false, error: `No unbilled hours up to ${draft.periodEnd}.` };
+  }
+  if (company.billingType === "milestone" && draft.billedMilestoneIds.length === 0) {
+    return { ok: false, error: "No pending milestones to bill — add some on the company first." };
   }
 
   const [invoice] = await db
@@ -219,11 +263,22 @@ export async function generateInvoice(
       invoiceNumber: draft.invoiceNumber,
       issueDate: draft.issueDate,
       dueDate: draft.dueDate,
+      currency: draft.currency,
+      subtotal: draft.subtotal,
+      discountType: draft.discountType,
+      discountValue: draft.discountValue,
+      discountAmount: draft.discountAmount,
+      taxRate: draft.taxRate,
+      taxLabel: draft.taxLabel,
+      taxAmount: draft.taxAmount,
       amount: draft.amount,
       status: "draft",
       notes: draft.notes,
     })
     .returning({ id: invoices.id });
+
+  // Persist the draft's line items against the new invoice.
+  await insertInvoiceLineItems(session.user.id, invoice.id, draft.lineItems);
 
   // Stamp the billed entries so they can't be billed again.
   if (draft.billedEntryIds.length > 0) {
@@ -233,8 +288,17 @@ export async function generateInvoice(
       .where(inArray(timeEntries.id, draft.billedEntryIds));
   }
 
+  // Mark the billed milestones invoiced (DEV-119) so they aren't billed again.
+  if (draft.billedMilestoneIds.length > 0) {
+    await db
+      .update(companyMilestones)
+      .set({ status: "invoiced", invoicedInvoiceId: invoice.id })
+      .where(inArray(companyMilestones.id, draft.billedMilestoneIds));
+  }
+
   revalidatePath("/account/invoices");
   revalidatePath("/account/companies");
+  revalidatePath(`/account/companies/${companyId}/edit`);
   revalidatePath("/account");
   return { ok: true, invoiceNumber: draft.invoiceNumber, amount: draft.amount };
 }

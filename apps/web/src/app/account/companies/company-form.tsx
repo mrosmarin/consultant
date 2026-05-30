@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { suggestInvoicePrefix } from "@/lib/billing";
+import { CURRENCIES } from "@/lib/money";
 
 import { saveCompany } from "./actions";
 
@@ -16,6 +17,8 @@ import { saveCompany } from "./actions";
 const BILLING_TYPE_OPTIONS = [
   { value: "hourly", label: "Hourly rate" },
   { value: "retainer", label: "Flat retainer" },
+  { value: "fixed", label: "Fixed project fee" },
+  { value: "milestone", label: "Milestone billing" },
 ] as const;
 
 const BILLING_FREQUENCY_OPTIONS = [
@@ -38,10 +41,15 @@ export type CompanyFormValues = {
   billingType: string;
   hourlyRate: string | null;
   retainerAmount: string | null;
+  fixedAmount: string | null;
   billingFrequency: string;
   billingAnchorDay: number | null;
   paymentTermsDays: number | null;
   invoicePrefix: string | null;
+  currency: string | null;
+  taxRate: string | null;
+  taxLabel: string | null;
+  taxExempt: boolean;
 };
 
 export function CompanyForm({ company }: { company?: CompanyFormValues }) {
@@ -143,6 +151,22 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
       </div>
 
       <div className="grid gap-2">
+        <Label htmlFor="currency">Currency</Label>
+        <select
+          id="currency"
+          name="currency"
+          defaultValue={company?.currency ?? "USD"}
+          className={selectClass}
+        >
+          {CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2">
         <Label htmlFor="paymentTermsDays">Payment terms</Label>
         <select
           id="paymentTermsDays"
@@ -160,7 +184,7 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
 
       {billingType === "hourly" ? (
         <div className="grid gap-2">
-          <Label htmlFor="hourlyRate">Hourly rate (USD)</Label>
+          <Label htmlFor="hourlyRate">Hourly rate</Label>
           <Input
             id="hourlyRate"
             name="hourlyRate"
@@ -170,9 +194,9 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
             defaultValue={company?.hourlyRate ?? ""}
           />
         </div>
-      ) : (
+      ) : billingType === "retainer" ? (
         <div className="grid gap-2">
-          <Label htmlFor="retainerAmount">Retainer amount (USD / period)</Label>
+          <Label htmlFor="retainerAmount">Retainer amount (per period)</Label>
           <Input
             id="retainerAmount"
             name="retainerAmount"
@@ -181,6 +205,25 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
             min="0"
             defaultValue={company?.retainerAmount ?? ""}
           />
+        </div>
+      ) : billingType === "fixed" ? (
+        <div className="grid gap-2">
+          <Label htmlFor="fixedAmount">Fixed project fee</Label>
+          <Input
+            id="fixedAmount"
+            name="fixedAmount"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={company?.fixedAmount ?? ""}
+          />
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:col-span-2">
+          <p className="text-muted-foreground text-sm">
+            Milestone billing — add the milestone schedule (name + amount) below after saving.
+            Generating an invoice bills the pending milestones.
+          </p>
         </div>
       )}
 
@@ -196,6 +239,38 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
           defaultValue={company?.billingAnchorDay ?? ""}
         />
       </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="taxRate">Default tax rate (%)</Label>
+        <Input
+          id="taxRate"
+          name="taxRate"
+          type="number"
+          step="0.001"
+          min="0"
+          max="100"
+          placeholder="e.g. 8.875"
+          defaultValue={company?.taxRate ?? ""}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="taxLabel">Tax label (optional)</Label>
+        <Input
+          id="taxLabel"
+          name="taxLabel"
+          placeholder="e.g. NY Sales Tax"
+          defaultValue={company?.taxLabel ?? ""}
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+        <input
+          type="checkbox"
+          name="taxExempt"
+          defaultChecked={company?.taxExempt ?? false}
+          className="size-4"
+        />
+        Tax-exempt client (never apply tax, even if a rate is set)
+      </label>
 
       <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="notes">Notes (optional)</Label>

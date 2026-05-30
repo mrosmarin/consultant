@@ -3,16 +3,15 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { companies, invoices, INVOICE_STATUSES } from "@/db/schema";
+import { companies, invoices, invoiceLineItems, INVOICE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { buildInvoiceDraft } from "@/lib/invoicing";
+import { formatMoney } from "@/lib/money";
 
 import { deleteInvoice, updateInvoiceStatus } from "./actions";
 import { AddInvoiceForm, type InvoicePrefill } from "./add-invoice-form";
 
 export const dynamic = "force-dynamic";
-
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 const statusBadge: Record<string, string> = {
   draft: "bg-secondary text-secondary-foreground",
@@ -40,6 +39,11 @@ export default async function InvoicesPage() {
         notes: invoices.notes,
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
+        currency: invoices.currency,
+        subtotal: invoices.subtotal,
+        discountAmount: invoices.discountAmount,
+        taxLabel: invoices.taxLabel,
+        taxAmount: invoices.taxAmount,
         amount: invoices.amount,
         status: invoices.status,
       })
@@ -49,8 +53,8 @@ export default async function InvoicesPage() {
       .orderBy(desc(invoices.issueDate), desc(invoices.createdAt)),
   ]);
 
-  // Pre-compute the auto-fill suggestion for each company so selecting one in the
-  // form fills the number/amount/dates/notes with no extra round-trip.
+  // Pre-compute the auto-fill suggestion (incl. line items) for each company so
+  // selecting one in the form fills it in with no extra round-trip.
   const prefills: InvoicePrefill[] = await Promise.all(
     companyRows.map(async (c) => {
       const d = await buildInvoiceDraft(c, session.user.id);
@@ -58,15 +62,43 @@ export default async function InvoicesPage() {
         id: c.id,
         name: c.name,
         invoiceNumber: d.invoiceNumber,
-        amount: d.amount,
         issueDate: d.issueDate,
         dueDate: d.dueDate,
         notes: d.notes,
         hours: d.hours,
         billingType: c.billingType,
+        currency: c.currency,
+        taxRate: c.taxRate,
+        taxLabel: c.taxLabel,
+        taxExempt: c.taxExempt,
+        lineItems: d.lineItems.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitAmount: l.unitAmount,
+          sourceType: l.sourceType,
+          sourceId: l.sourceId,
+        })),
       };
     }),
   );
+
+  // Line items for the listed invoices, grouped for display under each row.
+  const allLines = await db
+    .select({
+      invoiceId: invoiceLineItems.invoiceId,
+      description: invoiceLineItems.description,
+      lineTotal: invoiceLineItems.lineTotal,
+      sortOrder: invoiceLineItems.sortOrder,
+    })
+    .from(invoiceLineItems)
+    .where(and(eq(invoiceLineItems.userId, session.user.id), isNull(invoiceLineItems.deletedAt)))
+    .orderBy(asc(invoiceLineItems.sortOrder));
+  const linesByInvoice = new Map<string, { description: string; lineTotal: string }[]>();
+  for (const l of allLines) {
+    const arr = linesByInvoice.get(l.invoiceId) ?? [];
+    arr.push({ description: l.description, lineTotal: l.lineTotal });
+    linesByInvoice.set(l.invoiceId, arr);
+  }
 
   return (
     <div className="space-y-8">
@@ -108,13 +140,31 @@ export default async function InvoicesPage() {
                     <td className="px-4 py-2 font-mono text-xs">{r.invoiceNumber}</td>
                     <td className="px-4 py-2">
                       {r.companyName ?? r.client ?? "—"}
-                      {r.notes ? (
-                        <span className="text-muted-foreground block text-xs">{r.notes}</span>
-                      ) : null}
+                      {(linesByInvoice.get(r.id) ?? []).map((l, i) => (
+                        <span key={i} className="text-muted-foreground block text-xs">
+                          • {l.description} — {formatMoney(Number(l.lineTotal), r.currency)}
+                        </span>
+                      ))}
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">{r.issueDate}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
-                    <td className="px-4 py-2 text-right font-mono">{usd.format(Number(r.amount))}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {formatMoney(Number(r.amount), r.currency)}
+                      <span className="text-muted-foreground ml-1 text-xs font-normal">
+                        {r.currency}
+                      </span>
+                      {Number(r.discountAmount ?? 0) > 0 || Number(r.taxAmount ?? 0) > 0 ? (
+                        <span className="text-muted-foreground block text-xs font-normal">
+                          {formatMoney(Number(r.subtotal ?? 0), r.currency)}
+                          {Number(r.discountAmount ?? 0) > 0
+                            ? ` − ${formatMoney(Number(r.discountAmount), r.currency)} disc`
+                            : ""}
+                          {Number(r.taxAmount ?? 0) > 0
+                            ? ` + ${r.taxLabel ?? "tax"} ${formatMoney(Number(r.taxAmount), r.currency)}`
+                            : ""}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2">
                       <form action={updateInvoiceStatus} className="flex items-center gap-2">
                         <input type="hidden" name="id" value={r.id} />

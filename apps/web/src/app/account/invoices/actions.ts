@@ -4,11 +4,81 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { companies, invoices, timeEntries, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
+import {
+  companies,
+  companyMilestones,
+  invoices,
+  timeEntries,
+  INVOICE_STATUSES,
+  type InvoiceStatus,
+} from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { buildInvoiceDraft } from "@/lib/invoicing";
+import {
+  buildInvoiceDraft,
+  computeInvoiceTotals,
+  insertInvoiceLineItems,
+  type DiscountInput,
+  type DraftLineItem,
+} from "@/lib/invoicing";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
+
+type ParsedLine = {
+  description: string;
+  quantity: number;
+  unitAmount: number;
+  sourceType: string | null;
+  sourceId: string | null;
+};
+
+// Parse + validate the line-items JSON submitted by the form. Each line may
+// carry sourceType/sourceId (a time entry it came from) — used for partial
+// billing: only the entries whose lines survive get stamped billed.
+function parseLineItems(raw: string): { lines: ParsedLine[] } | { error: string } {
+  let arr: unknown;
+  try {
+    arr = JSON.parse(raw || "[]");
+  } catch {
+    return { error: "Couldn't read the line items." };
+  }
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return { error: "Add at least one line item." };
+  }
+  const lines: ParsedLine[] = [];
+  for (const item of arr) {
+    const row = item as Record<string, unknown>;
+    const description = String(row?.description ?? "").trim();
+    const quantity = Number(row?.quantity);
+    const unitAmount = Number(row?.unitAmount);
+    if (!description) return { error: "Every line item needs a description." };
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return { error: "Line quantities must be positive numbers." };
+    }
+    if (!Number.isFinite(unitAmount) || unitAmount < 0) {
+      return { error: "Line rates must be non-negative numbers." };
+    }
+    const sourceType = row?.sourceType ? String(row.sourceType) : null;
+    const sourceId = row?.sourceId ? String(row.sourceId) : null;
+    lines.push({ description, quantity, unitAmount, sourceType, sourceId });
+  }
+  return { lines };
+}
+
+// Parse the optional invoice-level discount from the form.
+function parseDiscount(
+  typeRaw: string,
+  valueRaw: string,
+): { discount: DiscountInput } | { error: string } {
+  if ((typeRaw !== "percent" && typeRaw !== "fixed") || !valueRaw) return { discount: null };
+  const value = Number(valueRaw);
+  if (!Number.isFinite(value) || value < 0) {
+    return { error: "Discount must be a non-negative number." };
+  }
+  if (typeRaw === "percent" && value > 100) {
+    return { error: "A percentage discount can't exceed 100%." };
+  }
+  return { discount: value > 0 ? { type: typeRaw, value } : null };
+}
 
 export async function createInvoice(
   _prev: InvoiceState,
@@ -21,19 +91,37 @@ export async function createInvoice(
   const companyId = ((formData.get("companyId") as string) ?? "").trim();
   const issueDate = (formData.get("issueDate") as string)?.trim();
   const dueDate = (formData.get("dueDate") as string)?.trim();
-  const amountRaw = (formData.get("amount") as string)?.trim();
   const notes = ((formData.get("notes") as string) ?? "").trim() || null;
-  const amount = Number(amountRaw);
+  const lineItemsRaw = (formData.get("lineItems") as string) ?? "";
 
-  if (!invoiceNumber || !companyId || !issueDate || !dueDate || !amountRaw) {
-    return { ok: false, error: "Invoice #, company, dates, and amount are required." };
-  }
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, error: "Amount must be a positive number." };
+  if (!invoiceNumber || !companyId || !issueDate || !dueDate) {
+    return { ok: false, error: "Invoice #, company, and dates are required." };
   }
   if (dueDate < issueDate) {
     return { ok: false, error: "Due date can't be before the issue date." };
   }
+
+  const parsed = parseLineItems(lineItemsRaw);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+
+  const discountParsed = parseDiscount(
+    ((formData.get("discountType") as string) ?? "").trim(),
+    ((formData.get("discountValue") as string) ?? "").trim(),
+  );
+  if ("error" in discountParsed) return { ok: false, error: discountParsed.error };
+
+  // Line totals are derived server-side (never trust a client total). Each line
+  // keeps its source (a time entry) so partial billing can stamp only those.
+  const lines: DraftLineItem[] = parsed.lines.map((l) => ({
+    description: l.description,
+    quantity: l.quantity.toFixed(2),
+    unitAmount: l.unitAmount.toFixed(2),
+    lineTotal: (l.quantity * l.unitAmount).toFixed(2),
+    sourceType: l.sourceType ?? "manual",
+    sourceId: l.sourceId,
+  }));
+  const subtotal = lines.reduce((sum, l) => sum + Number(l.lineTotal), 0);
+  if (subtotal <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
 
   // Verify the company is one the signed-in user owns (not soft-deleted).
   const [company] = await db
@@ -50,10 +138,13 @@ export async function createInvoice(
   if (!company) return { ok: false, error: "Pick one of your companies." };
 
   // The form is an editable "Generate": the invoice carries the (possibly edited)
-  // form values, but for an hourly company we still bill the underlying unbilled
-  // hours so the same time can't be invoiced twice (consistent with the Generate
-  // button). The draft tells us which entries to stamp.
+  // lines, but for an hourly company we still bill the underlying unbilled hours
+  // so the same time can't be invoiced twice. The draft tells us which to stamp.
   const draft = await buildInvoiceDraft(company, session.user.id);
+
+  // Discount (before tax) and tax are snapshotted onto the invoice from the
+  // line subtotal + company config — never trusted from the client (DEV-116/118).
+  const totals = computeInvoiceTotals(subtotal, company, discountParsed.discount);
 
   const [invoice] = await db
     .insert(invoices)
@@ -63,17 +154,47 @@ export async function createInvoice(
       invoiceNumber,
       issueDate,
       dueDate,
-      amount: amount.toFixed(2),
+      currency: company.currency,
+      subtotal: totals.subtotal,
+      discountType: totals.discountType,
+      discountValue: totals.discountValue,
+      discountAmount: totals.discountAmount,
+      taxRate: totals.taxRate,
+      taxLabel: totals.taxLabel,
+      taxAmount: totals.taxAmount,
+      amount: totals.amount,
       status: "draft",
       notes,
     })
     .returning({ id: invoices.id });
 
-  if (draft.billedEntryIds.length > 0) {
+  await insertInvoiceLineItems(session.user.id, invoice.id, lines);
+
+  // Partial billing (DEV-118): stamp ONLY the time entries whose lines made it
+  // onto this invoice — and only ones the draft says are legitimately billable
+  // (guards against a tampered sourceId). Dropping a time line leaves it unbilled.
+  const draftIds = new Set(draft.billedEntryIds);
+  const billedIds = lines
+    .filter((l) => l.sourceType === "time" && l.sourceId && draftIds.has(l.sourceId))
+    .map((l) => l.sourceId as string);
+  if (billedIds.length > 0) {
     await db
       .update(timeEntries)
       .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
-      .where(inArray(timeEntries.id, draft.billedEntryIds));
+      .where(inArray(timeEntries.id, billedIds));
+  }
+
+  // Same for milestones (DEV-119): mark invoiced only the pending milestones
+  // whose lines were submitted (and are legitimately in the draft).
+  const draftMilestoneIds = new Set(draft.billedMilestoneIds);
+  const milestoneIds = lines
+    .filter((l) => l.sourceType === "milestone" && l.sourceId && draftMilestoneIds.has(l.sourceId))
+    .map((l) => l.sourceId as string);
+  if (milestoneIds.length > 0) {
+    await db
+      .update(companyMilestones)
+      .set({ status: "invoiced", invoicedInvoiceId: invoice.id })
+      .where(inArray(companyMilestones.id, milestoneIds));
   }
 
   revalidatePath("/account/invoices");

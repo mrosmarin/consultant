@@ -22,8 +22,11 @@ export const allowedEmails = pgTable("allowed_emails", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const BILLING_TYPES = ["hourly", "retainer"] as const;
+export const BILLING_TYPES = ["hourly", "retainer", "fixed", "milestone"] as const;
 export type BillingType = (typeof BILLING_TYPES)[number];
+
+export const MILESTONE_STATUSES = ["pending", "invoiced"] as const;
+export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
 
 export const BILLING_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly"] as const;
 export type BillingFrequency = (typeof BILLING_FREQUENCIES)[number];
@@ -49,6 +52,8 @@ export const companies = pgTable("companies", {
   billingType: text("billing_type").notNull().default("hourly"),
   hourlyRate: numeric("hourly_rate", { precision: 12, scale: 2 }),
   retainerAmount: numeric("retainer_amount", { precision: 12, scale: 2 }),
+  // Flat project fee for billing_type = "fixed" (DEV-119).
+  fixedAmount: numeric("fixed_amount", { precision: 12, scale: 2 }),
   billingFrequency: text("billing_frequency").notNull().default("monthly"),
   billingAnchorDay: integer("billing_anchor_day"),
   // Net payment terms in days (0 = due on receipt). Drives the invoice due-date
@@ -57,6 +62,16 @@ export const companies = pgTable("companies", {
   // Prefix for generated invoice numbers (e.g. "ACME" → ACME-0001). Suggested
   // from the name at onboarding; editable.
   invoicePrefix: text("invoice_prefix"),
+  // ISO 4217 currency this client is invoiced in (DEV-117); snapshotted onto
+  // each invoice at create. Default USD. No FX conversion — amounts stay in
+  // their own currency.
+  currency: text("currency").notNull().default("USD"),
+  // Default tax for this client's invoices (DEV-116). Rate is a percent
+  // (e.g. 8.875 = 8.875%); label is shown on the invoice (e.g. "NY Sales Tax").
+  // taxExempt overrides the rate — no tax is applied regardless of rate.
+  taxRate: numeric("tax_rate", { precision: 6, scale: 3 }),
+  taxLabel: text("tax_label"),
+  taxExempt: boolean("tax_exempt").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
@@ -152,9 +167,65 @@ export const invoices = pgTable("invoices", {
   client: text("client"),
   issueDate: date("issue_date").notNull(),
   dueDate: date("due_date").notNull(),
+  // ISO 4217 currency captured from the company at create (DEV-117). Default USD.
+  currency: text("currency").notNull().default("USD"),
+  // Money breakdown (DEV-116): subtotal = Σ(line_total); tax snapshotted from the
+  // company at create time (rate is a percent, label shown on the invoice);
+  // amount = subtotal + tax_amount (the grand total — kept authoritative for
+  // back-compat). Pre-tax invoices have subtotal = amount and tax_amount = 0.
+  subtotal: numeric("subtotal", { precision: 12, scale: 2 }),
+  // Invoice-level discount (DEV-118). discount_type is "percent" | "fixed" | null;
+  // discount_value is the entered percent or fixed amount; discount_amount is the
+  // computed dollar discount. Applied to the subtotal BEFORE tax, so:
+  // amount = (subtotal − discount_amount) + tax_amount.
+  discountType: text("discount_type"),
+  discountValue: numeric("discount_value", { precision: 12, scale: 3 }),
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }),
+  taxRate: numeric("tax_rate", { precision: 6, scale: 3 }),
+  taxLabel: text("tax_label"),
+  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: text("status").notNull().default("draft"),
   notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+// Line items for an invoice (DEV-115). The invoice's `amount` is the total =
+// sum(line_total). Plain uuid invoice_id (no hard FK — established pattern);
+// owner-scoped + RLS + soft-delete. source_type/source_id optionally link a line
+// back to its origin (a time entry, later an expense).
+export const invoiceLineItems = pgTable("invoice_line_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  invoiceId: uuid("invoice_id").notNull(),
+  description: text("description").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
+  unitAmount: numeric("unit_amount", { precision: 12, scale: 2 }).notNull(),
+  lineTotal: numeric("line_total", { precision: 12, scale: 2 }).notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  sourceType: text("source_type"),
+  sourceId: uuid("source_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+// Billing milestones for a company on billing_type = "milestone" (DEV-119):
+// a schedule of named, fixed-amount chunks. Generating an invoice bills the
+// PENDING milestones (each becomes a line item) and stamps them "invoiced" with
+// the invoice id — mirrors how time entries are stamped billed. Company-level
+// (the billing model + Generate flow are company-centric); plain uuid company_id,
+// owner-scoped + RLS + soft-delete.
+export const companyMilestones = pgTable("company_milestones", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  name: text("name").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  dueDate: date("due_date"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  invoicedInvoiceId: uuid("invoiced_invoice_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
