@@ -6,13 +6,12 @@ import { db } from "@/db";
 import { companies, invoices, invoiceLineItems, INVOICE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { buildInvoiceDraft } from "@/lib/invoicing";
+import { formatMoney } from "@/lib/money";
 
 import { deleteInvoice, updateInvoiceStatus } from "./actions";
 import { AddInvoiceForm, type InvoicePrefill } from "./add-invoice-form";
 
 export const dynamic = "force-dynamic";
-
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 const statusBadge: Record<string, string> = {
   draft: "bg-secondary text-secondary-foreground",
@@ -40,6 +39,7 @@ export default async function InvoicesPage() {
         notes: invoices.notes,
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
+        currency: invoices.currency,
         subtotal: invoices.subtotal,
         discountAmount: invoices.discountAmount,
         taxLabel: invoices.taxLabel,
@@ -67,6 +67,7 @@ export default async function InvoicesPage() {
         notes: d.notes,
         hours: d.hours,
         billingType: c.billingType,
+        currency: c.currency,
         taxRate: c.taxRate,
         taxLabel: c.taxLabel,
         taxExempt: c.taxExempt,
@@ -141,22 +142,25 @@ export default async function InvoicesPage() {
                       {r.companyName ?? r.client ?? "—"}
                       {(linesByInvoice.get(r.id) ?? []).map((l, i) => (
                         <span key={i} className="text-muted-foreground block text-xs">
-                          • {l.description} — {usd.format(Number(l.lineTotal))}
+                          • {l.description} — {formatMoney(Number(l.lineTotal), r.currency)}
                         </span>
                       ))}
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">{r.issueDate}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
                     <td className="px-4 py-2 text-right font-mono">
-                      {usd.format(Number(r.amount))}
+                      {formatMoney(Number(r.amount), r.currency)}
+                      <span className="text-muted-foreground ml-1 text-xs font-normal">
+                        {r.currency}
+                      </span>
                       {Number(r.discountAmount ?? 0) > 0 || Number(r.taxAmount ?? 0) > 0 ? (
                         <span className="text-muted-foreground block text-xs font-normal">
-                          {usd.format(Number(r.subtotal ?? 0))}
+                          {formatMoney(Number(r.subtotal ?? 0), r.currency)}
                           {Number(r.discountAmount ?? 0) > 0
-                            ? ` − ${usd.format(Number(r.discountAmount))} disc`
+                            ? ` − ${formatMoney(Number(r.discountAmount), r.currency)} disc`
                             : ""}
                           {Number(r.taxAmount ?? 0) > 0
-                            ? ` + ${r.taxLabel ?? "tax"} ${usd.format(Number(r.taxAmount))}`
+                            ? ` + ${r.taxLabel ?? "tax"} ${formatMoney(Number(r.taxAmount), r.currency)}`
                             : ""}
                         </span>
                       ) : null}

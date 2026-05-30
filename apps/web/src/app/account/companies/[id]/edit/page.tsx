@@ -84,6 +84,7 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
               billingAnchorDay: company.billingAnchorDay,
               paymentTermsDays: company.paymentTermsDays,
               invoicePrefix: company.invoicePrefix,
+              currency: company.currency,
               taxRate: company.taxRate,
               taxLabel: company.taxLabel,
               taxExempt: company.taxExempt,

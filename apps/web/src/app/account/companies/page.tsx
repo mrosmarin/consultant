@@ -6,14 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { formatMoney } from "@/lib/money";
 
 import { deleteCompany } from "./actions";
 import { CompanyForm } from "./company-form";
 import { GenerateInvoiceButton } from "./generate-invoice-button";
 
 export const dynamic = "force-dynamic";
-
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 const FREQUENCY_LABEL: Record<string, string> = {
   weekly: "Weekly",
@@ -22,11 +21,16 @@ const FREQUENCY_LABEL: Record<string, string> = {
   monthly: "Monthly",
 };
 
-function billingSummary(billingType: string, hourlyRate: string | null, retainer: string | null) {
+function billingSummary(
+  billingType: string,
+  hourlyRate: string | null,
+  retainer: string | null,
+  currency: string,
+) {
   if (billingType === "hourly") {
-    return hourlyRate ? `${usd.format(Number(hourlyRate))}/hr` : "Hourly";
+    return hourlyRate ? `${formatMoney(Number(hourlyRate), currency)}/hr` : "Hourly";
   }
-  return retainer ? `${usd.format(Number(retainer))}/period` : "Retainer";
+  return retainer ? `${formatMoney(Number(retainer), currency)}/period` : "Retainer";
 }
 
 export default async function CompaniesPage() {
@@ -83,12 +87,13 @@ export default async function CompaniesPage() {
                       {r.contactName || r.contactEmail || "—"}
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">
-                      {billingSummary(r.billingType, r.hourlyRate, r.retainerAmount)}
+                      {billingSummary(r.billingType, r.hourlyRate, r.retainerAmount, r.currency)}{" "}
+                      <span className="text-muted-foreground text-xs">{r.currency}</span>
                     </td>
                     <td className="px-4 py-2">{FREQUENCY_LABEL[r.billingFrequency] ?? r.billingFrequency}</td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        <GenerateInvoiceButton companyId={r.id} size="sm" />
+                        <GenerateInvoiceButton companyId={r.id} currency={r.currency} size="sm" />
                         <Link
                           href={`/account/companies/${r.id}/edit`}
                           className="text-muted-foreground hover:text-foreground text-xs"

@@ -18,6 +18,7 @@ import {
 import { auth } from "@/lib/auth/server";
 import { suggestInvoicePrefix } from "@/lib/billing";
 import { buildInvoiceDraft, insertInvoiceLineItems } from "@/lib/invoicing";
+import { DEFAULT_CURRENCY, isCurrency } from "@/lib/money";
 
 export type CompanyState = { ok: boolean; error?: string } | null;
 
@@ -34,6 +35,7 @@ type ParsedCompany = {
   billingAnchorDay: number | null;
   paymentTermsDays: number;
   invoicePrefix: string;
+  currency: string;
   taxRate: string | null;
   taxLabel: string | null;
   taxExempt: boolean;
@@ -55,8 +57,11 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
   const taxRateRaw = ((formData.get("taxRate") as string) ?? "").trim();
   const taxLabel = ((formData.get("taxLabel") as string) ?? "").trim() || null;
   const taxExempt = formData.get("taxExempt") === "on" || formData.get("taxExempt") === "true";
+  const currencyRaw = ((formData.get("currency") as string) ?? "").trim().toUpperCase();
+  const currency = currencyRaw ? (isCurrency(currencyRaw) ? currencyRaw : "") : DEFAULT_CURRENCY;
 
   if (!name) return { error: "Company name is required." };
+  if (!currency) return { error: "Pick a supported currency." };
   if (!BILLING_TYPES.includes(billingType)) return { error: "Pick a billing type." };
   if (!BILLING_FREQUENCIES.includes(billingFrequency)) return { error: "Pick a billing frequency." };
 
@@ -125,6 +130,7 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
       billingAnchorDay,
       paymentTermsDays,
       invoicePrefix,
+      currency,
       taxRate,
       taxLabel,
       taxExempt,
@@ -238,6 +244,7 @@ export async function generateInvoice(
       invoiceNumber: draft.invoiceNumber,
       issueDate: draft.issueDate,
       dueDate: draft.dueDate,
+      currency: draft.currency,
       subtotal: draft.subtotal,
       discountType: draft.discountType,
       discountValue: draft.discountValue,

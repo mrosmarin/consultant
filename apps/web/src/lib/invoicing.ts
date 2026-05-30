@@ -39,6 +39,7 @@ export type MoneyTotals = {
 
 export type InvoiceDraft = {
   invoiceNumber: string;
+  currency: string;
   subtotal: string;
   discountType: string | null;
   discountValue: string | null;
@@ -196,6 +197,7 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
     const totals = computeInvoiceTotals(subtotal, company, null);
     return {
       invoiceNumber,
+      currency: company.currency,
       ...totals,
       issueDate,
       dueDate,
@@ -213,6 +215,7 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
   const totals = computeInvoiceTotals(retainer, company, null);
   return {
     invoiceNumber,
+    currency: company.currency,
     ...totals,
     issueDate,
     dueDate,

@@ -7,13 +7,12 @@ import { db } from "@/db";
 import { companies, projects } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { listCompanyOptions } from "@/lib/companies";
+import { formatMoney } from "@/lib/money";
 
 import { deleteProject } from "./actions";
 import { ProjectForm } from "./project-form";
 
 export const dynamic = "force-dynamic";
-
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
 export default async function ProjectsPage() {
   const { data: session } = await auth.getSession();
@@ -28,6 +27,7 @@ export default async function ProjectsPage() {
         status: projects.status,
         hourlyRate: projects.hourlyRate,
         companyName: companies.name,
+        currency: companies.currency,
       })
       .from(projects)
       .leftJoin(companies, eq(projects.companyId, companies.id))
@@ -96,7 +96,9 @@ export default async function ProjectsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">
-                      {r.hourlyRate ? `${usd.format(Number(r.hourlyRate))}/hr` : "company rate"}
+                      {r.hourlyRate
+                        ? `${formatMoney(Number(r.hourlyRate), r.currency)}/hr`
+                        : "company rate"}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-3">

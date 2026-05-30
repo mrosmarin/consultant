@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+import { formatMoney } from "@/lib/money";
+
 import { createInvoice } from "./actions";
 
 export type PrefillLine = {
@@ -28,6 +30,7 @@ export type InvoicePrefill = {
   hours: number;
   billingType: string;
   lineItems: PrefillLine[];
+  currency: string;
   taxRate: string | null; // percent, e.g. "8.875"
   taxLabel: string | null;
   taxExempt: boolean;
@@ -44,7 +47,6 @@ type Row = {
 const selectClass =
   "border-input bg-background h-9 rounded-md border px-2 text-sm focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-1";
 
-const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const blankRow = (): Row => ({
   description: "",
   quantity: "1",
@@ -112,6 +114,7 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
   const removeRow = (i: number) => setRows((rs) => (rs.length > 1 ? rs.filter((_, idx) => idx !== i) : rs));
 
   const selected = prefills.find((p) => p.id === companyId);
+  const fmt = (n: number) => formatMoney(n, selected?.currency);
   const subtotal = rows.reduce((sum, r) => sum + lineTotal(r), 0);
   // Mirror the server's computeInvoiceTotals for a live preview (discount before
   // tax); the server value is authoritative on submit.
@@ -243,7 +246,7 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
                       onChange={(e) => setRow(i, "unitAmount", e.target.value)}
                     />
                   </td>
-                  <td className="px-3 py-2 text-right font-mono">{usd.format(lineTotal(r))}</td>
+                  <td className="px-3 py-2 text-right font-mono">{fmt(lineTotal(r))}</td>
                   <td className="px-3 py-2 text-right">
                     <button
                       type="button"
@@ -262,7 +265,7 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
                 <td colSpan={3} className="px-3 py-2 text-right text-sm">
                   Subtotal
                 </td>
-                <td className="px-3 py-2 text-right font-mono">{usd.format(subtotal)}</td>
+                <td className="px-3 py-2 text-right font-mono">{fmt(subtotal)}</td>
                 <td />
               </tr>
               {discountAmount > 0 ? (
@@ -270,7 +273,7 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
                   <td colSpan={3} className="px-3 py-2 text-right text-sm">
                     Discount{discount.type === "percent" ? ` (${discountValueNum}%)` : ""}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono">−{usd.format(discountAmount)}</td>
+                  <td className="px-3 py-2 text-right font-mono">−{fmt(discountAmount)}</td>
                   <td />
                 </tr>
               ) : null}
@@ -279,7 +282,7 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
                   <td colSpan={3} className="px-3 py-2 text-right text-sm">
                     {selected?.taxLabel?.trim() || "Tax"} ({taxRateNum}%)
                   </td>
-                  <td className="px-3 py-2 text-right font-mono">{usd.format(taxAmount)}</td>
+                  <td className="px-3 py-2 text-right font-mono">{fmt(taxAmount)}</td>
                   <td />
                 </tr>
               ) : null}
@@ -288,7 +291,7 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
                   Total
                 </td>
                 <td className="px-3 py-2 text-right font-mono font-semibold">
-                  {usd.format(grandTotal)}
+                  {fmt(grandTotal)}
                 </td>
                 <td />
               </tr>
