@@ -141,6 +141,13 @@
       "when": 1780175131337,
       "tag": "0019_colossal_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1780175793806,
+      "tag": "0020_silky_doctor_faustus",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "invoices" ADD COLUMN "credited_invoice_id" uuid;
