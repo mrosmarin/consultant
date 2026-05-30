@@ -151,7 +151,7 @@ export const timeEntries = pgTable("time_entries", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
+export const INVOICE_STATUSES = ["draft", "sent", "viewed", "paid", "overdue"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 // The invoices table is a shared document model (DEV-120): a row is an invoice
@@ -212,6 +212,11 @@ export const invoices = pgTable("invoices", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: text("status").notNull().default("draft"),
   notes: text("notes"),
+  // Read receipts (DEV-122): a per-document random token powers a no-login public
+  // view at /invoice/<token>; viewed_at stamps the first open (and promotes a
+  // "sent" invoice to "viewed").
+  publicToken: uuid("public_token").notNull().defaultRandom().unique(),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
