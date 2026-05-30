@@ -154,6 +154,15 @@ export const timeEntries = pgTable("time_entries", {
 export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
+// The invoices table is a shared document model (DEV-120): a row is an invoice
+// or a quote/estimate, distinguished by `type`. Quotes reuse the entire money +
+// line-item machinery and carry their own status lifecycle.
+export const DOCUMENT_TYPES = ["invoice", "quote"] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+export const QUOTE_STATUSES = ["draft", "sent", "accepted", "declined", "expired"] as const;
+export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+
 // Portal invoicing. Same ownership model as time_entries (app-side scoping +
 // RLS backstop). company_id references companies.id (nullable for legacy rows);
 // the legacy free-text `client` is retained as a display fallback. status is a
@@ -163,6 +172,13 @@ export const invoices = pgTable("invoices", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull(),
   companyId: uuid("company_id").references(() => companies.id),
+  // "invoice" | "quote" (DEV-120). Quotes share this table + line items; their
+  // status uses QUOTE_STATUSES and they number with a separate "-Q-" sequence.
+  type: text("type").notNull().default("invoice"),
+  // For a quote: optional expiry date. For an invoice created by converting a
+  // quote: the quote it came from. Both null otherwise.
+  validUntil: date("valid_until"),
+  sourceQuoteId: uuid("source_quote_id"),
   invoiceNumber: text("invoice_number").notNull(),
   client: text("client"),
   issueDate: date("issue_date").notNull(),

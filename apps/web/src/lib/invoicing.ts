@@ -144,11 +144,12 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
   const period = latestCompletedPeriod(company.billingFrequency, company.billingAnchorDay, today);
   const prefix = company.invoicePrefix || suggestInvoicePrefix(company.name);
 
-  // Per-company number; count includes soft-deleted so numbers are never reused.
+  // Per-company invoice number; count includes soft-deleted so numbers are never
+  // reused. Excludes quotes (they number on their own "-Q-" sequence, DEV-120).
   const [{ n }] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(invoices)
-    .where(eq(invoices.companyId, company.id));
+    .where(and(eq(invoices.companyId, company.id), eq(invoices.type, "invoice")));
   const invoiceNumber = `${prefix}-${String((n ?? 0) + 1).padStart(4, "0")}`;
 
   const issueDate = today;

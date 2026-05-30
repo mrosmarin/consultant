@@ -19,7 +19,14 @@ export default async function EditInvoicePage({ params }: { params: Promise<{ id
   const [invoice] = await db
     .select()
     .from(invoices)
-    .where(and(eq(invoices.id, id), eq(invoices.userId, session.user.id), isNull(invoices.deletedAt)))
+    .where(
+      and(
+        eq(invoices.id, id),
+        eq(invoices.userId, session.user.id),
+        eq(invoices.type, "invoice"),
+        isNull(invoices.deletedAt),
+      ),
+    )
     .limit(1);
   if (!invoice) notFound();
 
