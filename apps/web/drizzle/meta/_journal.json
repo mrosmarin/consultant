@@ -127,6 +127,13 @@
       "when": 1780170505194,
       "tag": "0017_pale_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1780171793224,
+      "tag": "0018_simple_jean_grey",
+      "breakpoints": true
     }
   ]
 }

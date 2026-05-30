@@ -1,8 +1,8 @@
 import "server-only";
-import { and, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { companies, invoices, invoiceLineItems, timeEntries } from "@/db/schema";
+import { companies, companyMilestones, invoices, invoiceLineItems, timeEntries } from "@/db/schema";
 import { latestCompletedPeriod, suggestInvoicePrefix, addDaysISO, NET_TERMS_DAYS } from "./billing";
 
 type Company = typeof companies.$inferSelect;
@@ -53,9 +53,10 @@ export type InvoiceDraft = {
   notes: string;
   periodStart: string;
   periodEnd: string;
-  hours: number; // 0 for retainer
+  hours: number; // 0 for non-hourly
   lineItems: DraftLineItem[];
   billedEntryIds: string[]; // hourly entries this draft would mark billed
+  billedMilestoneIds: string[]; // milestones this draft would mark invoiced (DEV-119)
 };
 
 // Compute the subtotal → tax → total breakdown for an invoice (DEV-116). Tax is
@@ -207,32 +208,82 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
       hours,
       lineItems,
       billedEntryIds: entries.map((e) => e.id),
+      billedMilestoneIds: [],
     };
   }
 
-  // retainer — a single flat line for the period
-  const retainer = Number(company.retainerAmount ?? 0);
-  const totals = computeInvoiceTotals(retainer, company, null);
+  if (company.billingType === "milestone") {
+    // Bill the PENDING milestones — one line item each; generation stamps them
+    // invoiced (reuses the partial-billing path via sourceType "milestone").
+    const pending = await db
+      .select({ id: companyMilestones.id, name: companyMilestones.name, amount: companyMilestones.amount })
+      .from(companyMilestones)
+      .where(
+        and(
+          eq(companyMilestones.companyId, company.id),
+          eq(companyMilestones.userId, userId),
+          eq(companyMilestones.status, "pending"),
+          isNull(companyMilestones.deletedAt),
+        ),
+      )
+      .orderBy(asc(companyMilestones.sortOrder), asc(companyMilestones.createdAt));
+    let subtotal = 0;
+    const lineItems: DraftLineItem[] = pending.map((m) => {
+      const amt = Number(m.amount);
+      subtotal += amt;
+      return {
+        description: `Milestone — ${m.name}`,
+        quantity: "1.00",
+        unitAmount: amt.toFixed(2),
+        lineTotal: amt.toFixed(2),
+        sourceType: "milestone",
+        sourceId: m.id,
+      };
+    });
+    const totals = computeInvoiceTotals(subtotal, company, null);
+    return {
+      invoiceNumber,
+      currency: company.currency,
+      ...totals,
+      issueDate,
+      dueDate,
+      notes: `Milestones (${pending.length})`,
+      periodStart: period.start,
+      periodEnd: period.end,
+      hours: 0,
+      lineItems,
+      billedEntryIds: [],
+      billedMilestoneIds: pending.map((m) => m.id),
+    };
+  }
+
+  // fixed-fee — a single flat project fee; retainer — a single flat per-period line
+  const isFixed = company.billingType === "fixed";
+  const flat = Number((isFixed ? company.fixedAmount : company.retainerAmount) ?? 0);
+  const totals = computeInvoiceTotals(flat, company, null);
   return {
     invoiceNumber,
     currency: company.currency,
     ...totals,
     issueDate,
     dueDate,
-    notes: `Auto-generated retainer • ${period.start} – ${period.end}`,
+    notes: isFixed
+      ? "Fixed project fee"
+      : `Auto-generated retainer • ${period.start} – ${period.end}`,
     periodStart: period.start,
     periodEnd: period.end,
     hours: 0,
     lineItems: [
       {
-        description: `Retainer — ${period.start} to ${period.end}`,
+        description: isFixed ? "Fixed project fee" : `Retainer — ${period.start} to ${period.end}`,
         quantity: "1.00",
-        unitAmount: retainer.toFixed(2),
-        lineTotal: retainer.toFixed(2),
-        sourceType: "retainer",
+        unitAmount: flat.toFixed(2),
+        lineTotal: flat.toFixed(2),
+        sourceType: isFixed ? "fixed" : "retainer",
         sourceId: null,
       },
     ],
     billedEntryIds: [],
+    billedMilestoneIds: [],
   };
 }

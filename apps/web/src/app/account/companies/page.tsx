@@ -25,10 +25,17 @@ function billingSummary(
   billingType: string,
   hourlyRate: string | null,
   retainer: string | null,
+  fixed: string | null,
   currency: string,
 ) {
   if (billingType === "hourly") {
     return hourlyRate ? `${formatMoney(Number(hourlyRate), currency)}/hr` : "Hourly";
+  }
+  if (billingType === "fixed") {
+    return fixed ? `${formatMoney(Number(fixed), currency)} fixed` : "Fixed fee";
+  }
+  if (billingType === "milestone") {
+    return "Milestone";
   }
   return retainer ? `${formatMoney(Number(retainer), currency)}/period` : "Retainer";
 }
@@ -87,7 +94,13 @@ export default async function CompaniesPage() {
                       {r.contactName || r.contactEmail || "—"}
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">
-                      {billingSummary(r.billingType, r.hourlyRate, r.retainerAmount, r.currency)}{" "}
+                      {billingSummary(
+                        r.billingType,
+                        r.hourlyRate,
+                        r.retainerAmount,
+                        r.fixedAmount,
+                        r.currency,
+                      )}{" "}
                       <span className="text-muted-foreground text-xs">{r.currency}</span>
                     </td>
                     <td className="px-4 py-2">{FREQUENCY_LABEL[r.billingFrequency] ?? r.billingFrequency}</td>

@@ -4,11 +4,12 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { companies, companyContacts } from "@/db/schema";
+import { companies, companyContacts, companyMilestones } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
 import { CompanyForm } from "../../company-form";
 import { CompanyContacts } from "../../company-contacts";
+import { CompanyMilestones } from "../../company-milestones";
 import { GenerateInvoiceButton } from "../../generate-invoice-button";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,27 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
     )
     .orderBy(asc(companyContacts.name));
 
+  const milestones =
+    company.billingType === "milestone"
+      ? await db
+          .select({
+            id: companyMilestones.id,
+            name: companyMilestones.name,
+            amount: companyMilestones.amount,
+            status: companyMilestones.status,
+            dueDate: companyMilestones.dueDate,
+          })
+          .from(companyMilestones)
+          .where(
+            and(
+              eq(companyMilestones.companyId, company.id),
+              eq(companyMilestones.userId, session.user.id),
+              isNull(companyMilestones.deletedAt),
+            ),
+          )
+          .orderBy(asc(companyMilestones.sortOrder), asc(companyMilestones.createdAt))
+      : [];
+
   return (
     <div className="space-y-8">
       <div>
@@ -80,6 +102,7 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
               billingType: company.billingType,
               hourlyRate: company.hourlyRate,
               retainerAmount: company.retainerAmount,
+              fixedAmount: company.fixedAmount,
               billingFrequency: company.billingFrequency,
               billingAnchorDay: company.billingAnchorDay,
               paymentTermsDays: company.paymentTermsDays,
@@ -101,6 +124,21 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
           <CompanyContacts companyId={company.id} contacts={contacts} />
         </CardContent>
       </Card>
+
+      {company.billingType === "milestone" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Milestones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CompanyMilestones
+              companyId={company.id}
+              currency={company.currency}
+              milestones={milestones}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
