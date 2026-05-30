@@ -24,13 +24,29 @@ export type TaxBreakdown = {
   total: string; // subtotal + taxAmount
 };
 
-export type InvoiceDraft = {
-  invoiceNumber: string;
+export type DiscountInput = { type: "percent" | "fixed"; value: number } | null;
+
+export type MoneyTotals = {
   subtotal: string;
+  discountType: string | null; // "percent" | "fixed" | null
+  discountValue: string | null; // entered percent or fixed amount
+  discountAmount: string; // computed dollar discount; "0.00" when none
   taxRate: string | null;
   taxLabel: string | null;
   taxAmount: string;
-  amount: string; // grand total = subtotal + taxAmount
+  amount: string; // grand total = (subtotal − discountAmount) + taxAmount
+};
+
+export type InvoiceDraft = {
+  invoiceNumber: string;
+  subtotal: string;
+  discountType: string | null;
+  discountValue: string | null;
+  discountAmount: string;
+  taxRate: string | null;
+  taxLabel: string | null;
+  taxAmount: string;
+  amount: string; // grand total = (subtotal − discountAmount) + taxAmount
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -58,6 +74,39 @@ export function computeTax(
     taxLabel: applies ? (company.taxLabel?.trim() || "Tax") : null,
     taxAmount: taxAmount.toFixed(2),
     total: (subtotal + taxAmount).toFixed(2),
+  };
+}
+
+// Dollar value of an invoice-level discount, rounded to cents, floored at 0 and
+// capped at the subtotal (a discount can't exceed the line total). DEV-118.
+export function computeDiscount(subtotal: number, discount: DiscountInput): number {
+  if (!discount || !(discount.value > 0)) return 0;
+  const raw = discount.type === "percent" ? (subtotal * discount.value) / 100 : discount.value;
+  const amount = Math.round(raw * 100) / 100;
+  return Math.min(Math.max(amount, 0), subtotal);
+}
+
+// Full money breakdown for an invoice: subtotal → discount → tax (on the
+// discounted base) → grand total. Single source of truth shared by the draft,
+// the Generate action, and the manual create action.
+export function computeInvoiceTotals(
+  subtotal: number,
+  company: Pick<Company, "taxRate" | "taxLabel" | "taxExempt">,
+  discount: DiscountInput,
+): MoneyTotals {
+  const discountAmount = computeDiscount(subtotal, discount);
+  const discounted = subtotal - discountAmount;
+  const tax = computeTax(discounted, company);
+  const applies = discount != null && discount.value > 0 && discountAmount > 0;
+  return {
+    subtotal: subtotal.toFixed(2),
+    discountType: applies ? discount!.type : null,
+    discountValue: applies ? String(discount!.value) : null,
+    discountAmount: discountAmount.toFixed(2),
+    taxRate: tax.taxRate,
+    taxLabel: tax.taxLabel,
+    taxAmount: tax.taxAmount,
+    amount: (discounted + Number(tax.taxAmount)).toFixed(2),
   };
 }
 
@@ -144,14 +193,10 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         sourceId: e.id,
       };
     });
-    const tax = computeTax(subtotal, company);
+    const totals = computeInvoiceTotals(subtotal, company, null);
     return {
       invoiceNumber,
-      subtotal: tax.subtotal,
-      taxRate: tax.taxRate,
-      taxLabel: tax.taxLabel,
-      taxAmount: tax.taxAmount,
-      amount: tax.total,
+      ...totals,
       issueDate,
       dueDate,
       notes: `Auto-generated • ${period.start} – ${period.end} • ${hours} hrs`,
@@ -165,14 +210,10 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
 
   // retainer — a single flat line for the period
   const retainer = Number(company.retainerAmount ?? 0);
-  const tax = computeTax(retainer, company);
+  const totals = computeInvoiceTotals(retainer, company, null);
   return {
     invoiceNumber,
-    subtotal: tax.subtotal,
-    taxRate: tax.taxRate,
-    taxLabel: tax.taxLabel,
-    taxAmount: tax.taxAmount,
-    amount: tax.total,
+    ...totals,
     issueDate,
     dueDate,
     notes: `Auto-generated retainer • ${period.start} – ${period.end}`,
