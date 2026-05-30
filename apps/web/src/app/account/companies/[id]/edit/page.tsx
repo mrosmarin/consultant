@@ -62,6 +62,7 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
               retainerAmount: company.retainerAmount,
               billingFrequency: company.billingFrequency,
               billingAnchorDay: company.billingAnchorDay,
+              paymentTermsDays: company.paymentTermsDays,
               invoicePrefix: company.invoicePrefix,
             }}
           />

@@ -51,6 +51,9 @@ export const companies = pgTable("companies", {
   retainerAmount: numeric("retainer_amount", { precision: 12, scale: 2 }),
   billingFrequency: text("billing_frequency").notNull().default("monthly"),
   billingAnchorDay: integer("billing_anchor_day"),
+  // Net payment terms in days (0 = due on receipt). Drives the invoice due-date
+  // default. Defaults to 30 (NET_TERMS_DAYS).
+  paymentTermsDays: integer("payment_terms_days").notNull().default(30),
   // Prefix for generated invoice numbers (e.g. "ACME" → ACME-0001). Suggested
   // from the name at onboarding; editable.
   invoicePrefix: text("invoice_prefix"),
