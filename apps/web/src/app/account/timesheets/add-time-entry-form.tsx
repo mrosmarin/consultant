@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { CompanyOption } from "@/lib/companies";
+import type { ProjectOption } from "@/lib/projects";
 
 import { addTimeEntry } from "./actions";
 
@@ -16,12 +17,21 @@ const today = new Date().toISOString().slice(0, 10);
 const selectClass =
   "border-input bg-background h-9 rounded-md border px-2 text-sm focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-1";
 
-export function AddTimeEntryForm({ companies }: { companies: CompanyOption[] }) {
+export function AddTimeEntryForm({
+  companies,
+  projects,
+}: {
+  companies: CompanyOption[];
+  projects: ProjectOption[];
+}) {
   const [state, formAction, pending] = useActionState(addTimeEntry, null);
   // Controlled so the chosen company persists after submitting — React 19 resets
   // the (uncontrolled) form fields after a server action, which otherwise cleared
   // the company picker between consecutive entries for the same client.
   const [companyId, setCompanyId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  // Projects under the selected company (optional).
+  const companyProjects = projects.filter((p) => p.companyId === companyId);
 
   if (companies.length === 0) {
     return (
@@ -45,7 +55,10 @@ export function AddTimeEntryForm({ companies }: { companies: CompanyOption[] }) 
           required
           className={selectClass}
           value={companyId}
-          onChange={(e) => setCompanyId(e.target.value)}
+          onChange={(e) => {
+            setCompanyId(e.target.value);
+            setProjectId("");
+          }}
         >
           <option value="" disabled>
             Select a company…
@@ -57,6 +70,26 @@ export function AddTimeEntryForm({ companies }: { companies: CompanyOption[] }) 
           ))}
         </select>
       </div>
+
+      {companyProjects.length > 0 ? (
+        <div className="grid gap-2 sm:col-span-2">
+          <Label htmlFor="projectId">Project (optional)</Label>
+          <select
+            id="projectId"
+            name="projectId"
+            className={selectClass}
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+          >
+            <option value="">No project</option>
+            {companyProjects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="grid gap-2">
         <Label htmlFor="workDate">Date</Label>
