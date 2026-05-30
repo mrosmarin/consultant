@@ -22,6 +22,8 @@ _Last updated: 2026-05-30_
 
 ## Recent changes (newest first; deduped at the 2026-05-29 checkpoint)
 
+- **DEV-114 (time by project + task — M7, 2026-05-30):** `time_entries.task` (migration `0011`, free-text) — optional task/activity on the timesheet form; shown under the project in the entries list. (Project picker already shipped in DEV-109.) Gates green; **faithful dev round-trip PASSED** (logged "Discovery call" → stored). `0011` on dev + staging (prod batched for M7-end release). **M7 nearly complete — only DEV-110 (multiple contacts) remains.** (PR pending.)
+
 - **DEV-111 (client payment terms — M7, 2026-05-30):** `companies.payment_terms_days` (migration `0010`, default 30; 0 = due on receipt). Onboarding/edit form has a **Payment terms** select (Due on receipt / Net 15/30/45/60); `buildInvoiceDraft` computes the invoice due date from it (was the hardcoded `NET_TERMS_DAYS`). Gates green; **faithful dev round-trip PASSED** (Net 15 company → invoice issue→due = 15 days). `0010` applied to dev + staging (prod migrations `0010`+ batched for the M7-end release). (PR pending.)
 
 - **DEV-112 (billable vs non-billable — M7, 2026-05-30):** `time_entries.billable` boolean (migration `0009`, default true). Timesheet form has a **Billable** checkbox (default on); list marks non-billable entries. `buildInvoiceDraft` now bills **only billable** unbilled hours. Gates green; **faithful dev round-trip PASSED** (billable 2h + non-billable 2h @ $150 → invoice $300, only the billable entry stamped billed). `0009` on dev + staging. (PR pending; feeds utilization reporting DEV-134.)

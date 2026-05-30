@@ -97,6 +97,8 @@ export const timeEntries = pgTable("time_entries", {
   // Optional project under the company. Plain uuid (no hard FK) — same pattern
   // as billed_invoice_id; ownership/company-match enforced app-side.
   projectId: uuid("project_id"),
+  // Free-text task / activity within the project/company (e.g. "Discovery call").
+  task: text("task"),
   workDate: date("work_date").notNull(),
   startTime: time("start_time"),
   endTime: time("end_time"),

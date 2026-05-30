@@ -29,6 +29,7 @@ export async function addTimeEntry(
   const workDate = (formData.get("workDate") as string)?.trim();
   const companyId = ((formData.get("companyId") as string) ?? "").trim();
   const projectId = ((formData.get("projectId") as string) ?? "").trim() || null;
+  const task = ((formData.get("task") as string) ?? "").trim() || null;
   const startTime = ((formData.get("startTime") as string) ?? "").trim() || null;
   const endTime = ((formData.get("endTime") as string) ?? "").trim() || null;
   const hoursRaw = ((formData.get("hours") as string) ?? "").trim();
@@ -117,6 +118,7 @@ export async function addTimeEntry(
     userId: session.user.id,
     companyId,
     projectId,
+    task,
     workDate,
     startTime,
     endTime,
