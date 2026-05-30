@@ -8,6 +8,7 @@ import {
   companies,
   companyMilestones,
   invoices,
+  invoiceLineItems,
   timeEntries,
   INVOICE_STATUSES,
   type InvoiceStatus,
@@ -199,6 +200,103 @@ export async function createInvoice(
 
   revalidatePath("/account/invoices");
   revalidatePath("/account/companies");
+  revalidatePath("/account");
+  return { ok: true };
+}
+
+// Edit a DRAFT invoice's line items (add/edit/remove + reorder via submit order),
+// discount, dates and notes; recompute the money breakdown (DEV-139). Tax config
+// is re-read from the company; currency is kept as captured. Sent/paid invoices
+// are locked. Line items are replaced (old ones soft-deleted). Does NOT re-stamp
+// time entries / milestones — those were settled at create.
+export async function updateInvoice(_prev: InvoiceState, formData: FormData): Promise<InvoiceState> {
+  const { data: session } = await auth.getSession();
+  if (!session?.user) return { ok: false, error: "You're not signed in." };
+
+  const id = ((formData.get("id") as string) ?? "").trim();
+  const issueDate = (formData.get("issueDate") as string)?.trim();
+  const dueDate = (formData.get("dueDate") as string)?.trim();
+  const notes = ((formData.get("notes") as string) ?? "").trim() || null;
+  if (!id || !issueDate || !dueDate) {
+    return { ok: false, error: "Invoice, issue date, and due date are required." };
+  }
+  if (dueDate < issueDate) {
+    return { ok: false, error: "Due date can't be before the issue date." };
+  }
+
+  const [invoice] = await db
+    .select()
+    .from(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.userId, session.user.id), isNull(invoices.deletedAt)))
+    .limit(1);
+  if (!invoice) return { ok: false, error: "Invoice not found." };
+  if (invoice.status !== "draft") {
+    return { ok: false, error: "Only draft invoices can be edited. Set it back to draft first." };
+  }
+
+  const parsed = parseLineItems((formData.get("lineItems") as string) ?? "");
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const discountParsed = parseDiscount(
+    ((formData.get("discountType") as string) ?? "").trim(),
+    ((formData.get("discountValue") as string) ?? "").trim(),
+  );
+  if ("error" in discountParsed) return { ok: false, error: discountParsed.error };
+
+  const lines: DraftLineItem[] = parsed.lines.map((l) => ({
+    description: l.description,
+    quantity: l.quantity.toFixed(2),
+    unitAmount: l.unitAmount.toFixed(2),
+    lineTotal: (l.quantity * l.unitAmount).toFixed(2),
+    sourceType: l.sourceType ?? "manual",
+    sourceId: l.sourceId,
+  }));
+  const subtotal = lines.reduce((sum, l) => sum + Number(l.lineTotal), 0);
+  if (subtotal <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
+
+  // Tax config comes from the company (unchanged); currency stays as captured.
+  // If the company is gone, fall back to the invoice's own snapshotted tax rate.
+  const [company] = await db
+    .select()
+    .from(companies)
+    .where(and(eq(companies.id, invoice.companyId ?? ""), eq(companies.userId, session.user.id)))
+    .limit(1);
+  const taxConfig = company
+    ? { taxRate: company.taxRate, taxLabel: company.taxLabel, taxExempt: company.taxExempt }
+    : { taxRate: invoice.taxRate, taxLabel: invoice.taxLabel, taxExempt: false };
+  const totals = computeInvoiceTotals(subtotal, taxConfig, discountParsed.discount);
+
+  await db
+    .update(invoices)
+    .set({
+      issueDate,
+      dueDate,
+      notes,
+      subtotal: totals.subtotal,
+      discountType: totals.discountType,
+      discountValue: totals.discountValue,
+      discountAmount: totals.discountAmount,
+      taxRate: totals.taxRate,
+      taxLabel: totals.taxLabel,
+      taxAmount: totals.taxAmount,
+      amount: totals.amount,
+    })
+    .where(and(eq(invoices.id, id), eq(invoices.userId, session.user.id)));
+
+  // Replace line items: soft-delete the old set, insert the new (submit order =
+  // sort order, so move-up/down reordering persists).
+  await db
+    .update(invoiceLineItems)
+    .set({ deletedAt: new Date() })
+    .where(
+      and(
+        eq(invoiceLineItems.invoiceId, id),
+        eq(invoiceLineItems.userId, session.user.id),
+        isNull(invoiceLineItems.deletedAt),
+      ),
+    );
+  await insertInvoiceLineItems(session.user.id, id, lines);
+
+  revalidatePath("/account/invoices");
   revalidatePath("/account");
   return { ok: true };
 }
