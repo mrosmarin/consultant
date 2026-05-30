@@ -45,6 +45,7 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         and(
           eq(timeEntries.companyId, company.id),
           eq(timeEntries.userId, userId),
+          eq(timeEntries.billable, true),
           isNull(timeEntries.deletedAt),
           isNull(timeEntries.billedAt),
           lte(timeEntries.workDate, period.end),

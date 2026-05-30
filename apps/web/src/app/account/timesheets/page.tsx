@@ -31,6 +31,7 @@ export default async function TimesheetsPage() {
         endTime: timeEntries.endTime,
         hours: timeEntries.hours,
         rate: timeEntries.rate,
+        billable: timeEntries.billable,
         notes: timeEntries.notes,
         client: timeEntries.client,
         companyName: companies.name,
@@ -89,9 +90,16 @@ export default async function TimesheetsPage() {
                         ? `${hhmm(r.startTime)}–${hhmm(r.endTime)}`
                         : "—"}
                     </td>
-                    <td className="px-4 py-2 font-mono">{r.hours}</td>
+                    <td className="px-4 py-2 font-mono">
+                      {r.hours}
+                      {!r.billable ? (
+                        <span className="text-muted-foreground ml-1 font-sans text-xs">
+                          (non-billable)
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs">
-                      {r.rate ? `$${Number(r.rate).toFixed(2)}` : "—"}
+                      {r.billable && r.rate ? `$${Number(r.rate).toFixed(2)}` : "—"}
                     </td>
                     <td className="text-muted-foreground px-4 py-2">{r.notes}</td>
                     <td className="px-4 py-2 text-right">
