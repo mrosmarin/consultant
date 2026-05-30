@@ -107,6 +107,24 @@ export default async function InvoicesPage() {
     linesByInvoice.set(l.invoiceId, arr);
   }
 
+  // Issued credit notes reduce an invoice's effective outstanding (DEV-121).
+  const creditRows = await db
+    .select({ creditedInvoiceId: invoices.creditedInvoiceId, amount: invoices.amount })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.userId, session.user.id),
+        eq(invoices.type, "credit_note"),
+        eq(invoices.status, "issued"),
+        isNull(invoices.deletedAt),
+      ),
+    );
+  const creditByInvoice = new Map<string, number>();
+  for (const c of creditRows) {
+    if (!c.creditedInvoiceId) continue;
+    creditByInvoice.set(c.creditedInvoiceId, (creditByInvoice.get(c.creditedInvoiceId) ?? 0) + Number(c.amount));
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -169,6 +187,13 @@ export default async function InvoicesPage() {
                           {Number(r.taxAmount ?? 0) > 0
                             ? ` + ${r.taxLabel ?? "tax"} ${formatMoney(Number(r.taxAmount), r.currency)}`
                             : ""}
+                        </span>
+                      ) : null}
+                      {(creditByInvoice.get(r.id) ?? 0) > 0 ? (
+                        <span className="block text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                          − {formatMoney(creditByInvoice.get(r.id) ?? 0, r.currency)} credited ·{" "}
+                          {formatMoney(Number(r.amount) - (creditByInvoice.get(r.id) ?? 0), r.currency)}{" "}
+                          outstanding
                         </span>
                       ) : null}
                     </td>

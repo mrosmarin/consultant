@@ -157,11 +157,17 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 // The invoices table is a shared document model (DEV-120): a row is an invoice
 // or a quote/estimate, distinguished by `type`. Quotes reuse the entire money +
 // line-item machinery and carry their own status lifecycle.
-export const DOCUMENT_TYPES = ["invoice", "quote"] as const;
+export const DOCUMENT_TYPES = ["invoice", "quote", "credit_note"] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 export const QUOTE_STATUSES = ["draft", "sent", "accepted", "declined", "expired"] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+
+// Credit notes (DEV-121) are documents (type = "credit_note") linked to the
+// invoice they credit via `credited_invoice_id`. Their `amount` reduces that
+// invoice's effective outstanding balance.
+export const CREDIT_NOTE_STATUSES = ["issued", "void"] as const;
+export type CreditNoteStatus = (typeof CREDIT_NOTE_STATUSES)[number];
 
 // Portal invoicing. Same ownership model as time_entries (app-side scoping +
 // RLS backstop). company_id references companies.id (nullable for legacy rows);
@@ -179,6 +185,9 @@ export const invoices = pgTable("invoices", {
   // quote: the quote it came from. Both null otherwise.
   validUntil: date("valid_until"),
   sourceQuoteId: uuid("source_quote_id"),
+  // For a credit_note (DEV-121): the invoice it credits. Its amount reduces that
+  // invoice's effective outstanding balance.
+  creditedInvoiceId: uuid("credited_invoice_id"),
   invoiceNumber: text("invoice_number").notNull(),
   client: text("client"),
   issueDate: date("issue_date").notNull(),
