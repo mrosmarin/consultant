@@ -17,7 +17,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { suggestInvoicePrefix } from "@/lib/billing";
-import { buildInvoiceDraft } from "@/lib/invoicing";
+import { buildInvoiceDraft, insertInvoiceLineItems } from "@/lib/invoicing";
 
 export type CompanyState = { ok: boolean; error?: string } | null;
 
@@ -224,6 +224,9 @@ export async function generateInvoice(
       notes: draft.notes,
     })
     .returning({ id: invoices.id });
+
+  // Persist the draft's line items against the new invoice.
+  await insertInvoiceLineItems(session.user.id, invoice.id, draft.lineItems);
 
   // Stamp the billed entries so they can't be billed again.
   if (draft.billedEntryIds.length > 0) {

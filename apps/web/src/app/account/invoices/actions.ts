@@ -6,9 +6,39 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, invoices, timeEntries, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { buildInvoiceDraft } from "@/lib/invoicing";
+import { buildInvoiceDraft, insertInvoiceLineItems, type DraftLineItem } from "@/lib/invoicing";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
+
+type ParsedLine = { description: string; quantity: number; unitAmount: number };
+
+// Parse + validate the line-items JSON submitted by the form.
+function parseLineItems(raw: string): { lines: ParsedLine[] } | { error: string } {
+  let arr: unknown;
+  try {
+    arr = JSON.parse(raw || "[]");
+  } catch {
+    return { error: "Couldn't read the line items." };
+  }
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return { error: "Add at least one line item." };
+  }
+  const lines: ParsedLine[] = [];
+  for (const item of arr) {
+    const description = String((item as ParsedLine)?.description ?? "").trim();
+    const quantity = Number((item as ParsedLine)?.quantity);
+    const unitAmount = Number((item as ParsedLine)?.unitAmount);
+    if (!description) return { error: "Every line item needs a description." };
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return { error: "Line quantities must be positive numbers." };
+    }
+    if (!Number.isFinite(unitAmount) || unitAmount < 0) {
+      return { error: "Line rates must be non-negative numbers." };
+    }
+    lines.push({ description, quantity, unitAmount });
+  }
+  return { lines };
+}
 
 export async function createInvoice(
   _prev: InvoiceState,
@@ -21,19 +51,30 @@ export async function createInvoice(
   const companyId = ((formData.get("companyId") as string) ?? "").trim();
   const issueDate = (formData.get("issueDate") as string)?.trim();
   const dueDate = (formData.get("dueDate") as string)?.trim();
-  const amountRaw = (formData.get("amount") as string)?.trim();
   const notes = ((formData.get("notes") as string) ?? "").trim() || null;
-  const amount = Number(amountRaw);
+  const lineItemsRaw = (formData.get("lineItems") as string) ?? "";
 
-  if (!invoiceNumber || !companyId || !issueDate || !dueDate || !amountRaw) {
-    return { ok: false, error: "Invoice #, company, dates, and amount are required." };
-  }
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, error: "Amount must be a positive number." };
+  if (!invoiceNumber || !companyId || !issueDate || !dueDate) {
+    return { ok: false, error: "Invoice #, company, and dates are required." };
   }
   if (dueDate < issueDate) {
     return { ok: false, error: "Due date can't be before the issue date." };
   }
+
+  const parsed = parseLineItems(lineItemsRaw);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+
+  // Total is derived server-side from the lines (never trust a client total).
+  const lines: DraftLineItem[] = parsed.lines.map((l) => ({
+    description: l.description,
+    quantity: l.quantity.toFixed(2),
+    unitAmount: l.unitAmount.toFixed(2),
+    lineTotal: (l.quantity * l.unitAmount).toFixed(2),
+    sourceType: "manual",
+    sourceId: null,
+  }));
+  const amount = lines.reduce((sum, l) => sum + Number(l.lineTotal), 0);
+  if (amount <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
 
   // Verify the company is one the signed-in user owns (not soft-deleted).
   const [company] = await db
@@ -50,9 +91,8 @@ export async function createInvoice(
   if (!company) return { ok: false, error: "Pick one of your companies." };
 
   // The form is an editable "Generate": the invoice carries the (possibly edited)
-  // form values, but for an hourly company we still bill the underlying unbilled
-  // hours so the same time can't be invoiced twice (consistent with the Generate
-  // button). The draft tells us which entries to stamp.
+  // lines, but for an hourly company we still bill the underlying unbilled hours
+  // so the same time can't be invoiced twice. The draft tells us which to stamp.
   const draft = await buildInvoiceDraft(company, session.user.id);
 
   const [invoice] = await db
@@ -68,6 +108,8 @@ export async function createInvoice(
       notes,
     })
     .returning({ id: invoices.id });
+
+  await insertInvoiceLineItems(session.user.id, invoice.id, lines);
 
   if (draft.billedEntryIds.length > 0) {
     await db

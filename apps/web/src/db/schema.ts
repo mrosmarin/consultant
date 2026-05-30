@@ -158,3 +158,22 @@ export const invoices = pgTable("invoices", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
+
+// Line items for an invoice (DEV-115). The invoice's `amount` is the total =
+// sum(line_total). Plain uuid invoice_id (no hard FK — established pattern);
+// owner-scoped + RLS + soft-delete. source_type/source_id optionally link a line
+// back to its origin (a time entry, later an expense).
+export const invoiceLineItems = pgTable("invoice_line_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  invoiceId: uuid("invoice_id").notNull(),
+  description: text("description").notNull(),
+  quantity: numeric("quantity", { precision: 12, scale: 2 }).notNull(),
+  unitAmount: numeric("unit_amount", { precision: 12, scale: 2 }).notNull(),
+  lineTotal: numeric("line_total", { precision: 12, scale: 2 }).notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  sourceType: text("source_type"),
+  sourceId: uuid("source_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});

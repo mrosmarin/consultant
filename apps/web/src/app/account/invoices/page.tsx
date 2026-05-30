@@ -3,7 +3,7 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { companies, invoices, INVOICE_STATUSES } from "@/db/schema";
+import { companies, invoices, invoiceLineItems, INVOICE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { buildInvoiceDraft } from "@/lib/invoicing";
 
@@ -49,8 +49,8 @@ export default async function InvoicesPage() {
       .orderBy(desc(invoices.issueDate), desc(invoices.createdAt)),
   ]);
 
-  // Pre-compute the auto-fill suggestion for each company so selecting one in the
-  // form fills the number/amount/dates/notes with no extra round-trip.
+  // Pre-compute the auto-fill suggestion (incl. line items) for each company so
+  // selecting one in the form fills it in with no extra round-trip.
   const prefills: InvoicePrefill[] = await Promise.all(
     companyRows.map(async (c) => {
       const d = await buildInvoiceDraft(c, session.user.id);
@@ -58,15 +58,37 @@ export default async function InvoicesPage() {
         id: c.id,
         name: c.name,
         invoiceNumber: d.invoiceNumber,
-        amount: d.amount,
         issueDate: d.issueDate,
         dueDate: d.dueDate,
         notes: d.notes,
         hours: d.hours,
         billingType: c.billingType,
+        lineItems: d.lineItems.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitAmount: l.unitAmount,
+        })),
       };
     }),
   );
+
+  // Line items for the listed invoices, grouped for display under each row.
+  const allLines = await db
+    .select({
+      invoiceId: invoiceLineItems.invoiceId,
+      description: invoiceLineItems.description,
+      lineTotal: invoiceLineItems.lineTotal,
+      sortOrder: invoiceLineItems.sortOrder,
+    })
+    .from(invoiceLineItems)
+    .where(and(eq(invoiceLineItems.userId, session.user.id), isNull(invoiceLineItems.deletedAt)))
+    .orderBy(asc(invoiceLineItems.sortOrder));
+  const linesByInvoice = new Map<string, { description: string; lineTotal: string }[]>();
+  for (const l of allLines) {
+    const arr = linesByInvoice.get(l.invoiceId) ?? [];
+    arr.push({ description: l.description, lineTotal: l.lineTotal });
+    linesByInvoice.set(l.invoiceId, arr);
+  }
 
   return (
     <div className="space-y-8">
@@ -108,9 +130,11 @@ export default async function InvoicesPage() {
                     <td className="px-4 py-2 font-mono text-xs">{r.invoiceNumber}</td>
                     <td className="px-4 py-2">
                       {r.companyName ?? r.client ?? "—"}
-                      {r.notes ? (
-                        <span className="text-muted-foreground block text-xs">{r.notes}</span>
-                      ) : null}
+                      {(linesByInvoice.get(r.id) ?? []).map((l, i) => (
+                        <span key={i} className="text-muted-foreground block text-xs">
+                          • {l.description} — {usd.format(Number(l.lineTotal))}
+                        </span>
+                      ))}
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">{r.issueDate}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
