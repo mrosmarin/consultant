@@ -39,25 +39,40 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
 
   if (company.billingType === "hourly") {
     const entries = await db
-      .select({ id: timeEntries.id, hours: timeEntries.hours })
+      .select({ id: timeEntries.id, hours: timeEntries.hours, rate: timeEntries.rate })
       .from(timeEntries)
       .where(
         and(
           eq(timeEntries.companyId, company.id),
           eq(timeEntries.userId, userId),
+          eq(timeEntries.billable, true),
           isNull(timeEntries.deletedAt),
           isNull(timeEntries.billedAt),
           lte(timeEntries.workDate, period.end),
         ),
       );
-    const hours = entries.reduce((sum, e) => sum + Number(e.hours), 0);
-    const rate = Number(company.hourlyRate ?? 0);
+    // Amount = Σ(hours × effective rate). Each entry carries its own rate
+    // (entry override → project → company, snapshotted at log time); fall back
+    // to the company rate for legacy entries logged before rate-tracking.
+    const fallback = Number(company.hourlyRate ?? 0);
+    let hours = 0;
+    let amount = 0;
+    const rates = new Set<number>();
+    for (const e of entries) {
+      const h = Number(e.hours);
+      const r = e.rate != null ? Number(e.rate) : fallback;
+      hours += h;
+      amount += h * r;
+      rates.add(r);
+    }
+    const rateLabel =
+      rates.size === 1 ? `@ $${[...rates][0].toFixed(2)}/hr` : "(mixed rates)";
     return {
       invoiceNumber,
-      amount: (hours * rate).toFixed(2),
+      amount: amount.toFixed(2),
       issueDate,
       dueDate,
-      notes: `Auto-generated • ${period.start} – ${period.end} • ${hours} hrs @ $${rate.toFixed(2)}/hr`,
+      notes: `Auto-generated • ${period.start} – ${period.end} • ${hours} hrs ${rateLabel}`,
       periodStart: period.start,
       periodEnd: period.end,
       hours,

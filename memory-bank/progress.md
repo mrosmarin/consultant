@@ -52,10 +52,10 @@ _Last updated: 2026-05-29_
 - [x] Portal dashboard + navigation shell. _(DEV-95)_
 - [x] Timesheet tracking module (add/soft-delete, list, dashboard hours). _(DEV-96)_
 - [x] Invoicing module — create/status/soft-delete, list with badges, dashboard open count. _(DEV-97)_ PDF/email (DEV-76) + Stripe (DEV-77) deferred.
-- [~] **Company/client entity + onboarding** — `companies` table (migration `0004`, RLS + soft-delete) with both billing models (hourly|retainer) + frequency; `/account/companies` onboarding; timesheets/invoices reference `company_id`; time entries gained start/end times. Gates green + live dev round-trip. _(DEV-101, PR open — apply 0004 to staging/prod at deploy)_
-- [~] **Auth UX** — password reveal toggle, confirm-password, length-first policy (min 12). Gates green. _(DEV-102, PR #36)_
-- [~] **Invoice generation** — invoice prefix on company + "Generate invoice" button → draft for the latest completed billing period (hourly = unbilled hours × rate, entries stamped billed; retainer = flat). Migration `0005`; `src/lib/billing.ts` period math (unit-checked); faithful dev round-trip passed. _(DEV-103, PR pending)_. Future auto-gen via Neon pg_cron.
-- [ ] Company document storage _(DEV-104)_; Drive sync + PDF export _(DEV-105 ↔ DEV-76)_.
+- [x] **Company/client entity + onboarding** — `companies` table (migrations `0004`/`0005`, RLS + soft-delete) with both billing models (hourly|retainer) + frequency + invoice prefix; `/account/companies` onboarding; timesheets/invoices reference `company_id`; start/end times on entries. _(DEV-101, prod)_
+- [x] **Auth UX** — password reveal, confirm-password, length-first policy. _(DEV-102, prod)_ · **Portal server-action auth fix** _(DEV-106, prod)_ · **Sticky timesheet company** _(DEV-107, prod)_
+- [x] **Invoice generation** — prefix + "Generate invoice" (latest period; hourly hours×rate w/ billed-stamp; retainer flat) + **company-first auto-fill invoice form** sharing `src/lib/invoicing.ts buildInvoiceDraft`. _(DEV-103/108, prod)_ Future auto-gen via Neon pg_cron _(DEV-129)_.
+- [ ] **Invoicing platform M7–M13** — see `docs/roadmap.md` + Linear (DEV-109–138): client/project depth, invoice line-items (keystone DEV-115), tax/currency/discounts, quotes/credit-notes, PDF/email/docs, payments+reconciliation, automation, reporting, audit/RBAC/accounting.
 - [ ] Project/utilities showcase; CRUD with DB integration. _(DEV-71)_
 
 **M6 — Launch**
@@ -66,7 +66,7 @@ _Last updated: 2026-05-29_
 
 ## Current status
 
-**M1/M2/M4/M5 live in production at https://endlessworlds.xyz; on M3 + launch hardening.** SEO + GA4 live in prod; custom domain live; isolated staging/QA env live (resettable via `make db-reset-staging`). Last prod release was PR #34 (`cf7f8ba`). **In flight:** portal company/billing depth — DEV-101 company entity + onboarding (PR open) and DEV-102 auth UX (PR #36), both off `develop`; next DEV-103 accrual / DEV-104 docs / DEV-105 Drive+PDF. **Resume:** land DEV-101/102, then accrual or M3 (insights/blog DEV-59/66, copy polish DEV-63/64). Bigger gaps: RBAC (DEV-69), utilities showcase (DEV-71), and a real test suite (no automated coverage yet).
+**M1–M5 live in production at https://endlessworlds.xyz, incl. the company/client portal + invoicing core.** Last prod release **PR #42 (`c730187`, 2026-05-30)** — DEV-101/102/103/106/107/108, all Done; prod Neon at `0005`. SEO + GA4 live; custom domain live; isolated staging/QA (resettable via `make db-reset-staging`). **Roadmap:** the full invoicing platform is planned as **M7–M13** (`docs/roadmap.md` + Linear DEV-109–138); start at **M7 client/project depth → M8 invoice line-items (keystone DEV-115)**. **Also open:** M3 content (insights/blog DEV-59/66, copy DEV-63/64), RBAC (DEV-69), utilities showcase (DEV-71), and a real test suite (still no automated coverage).
 
 ## Known issues
 

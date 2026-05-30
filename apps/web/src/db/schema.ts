@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, date, time, numeric, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, date, time, numeric, integer, boolean } from "drizzle-orm/pg-core";
 
 // Contact / lead-capture submissions from the public site.
 // RLS enabled with a public-insert policy in the migration.
@@ -58,6 +58,29 @@ export const companies = pgTable("companies", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
+export const PROJECT_STATUSES = ["active", "closed"] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
+// Projects / engagements under a client company (DEV-109). Time is logged
+// against a project (optional), and a project can carry an hourly-rate override
+// that takes precedence over the company rate (rate resolution — DEV-113).
+// Owner-scoped, RLS backstop, soft-delete — same model as companies.
+export const projects = pgTable("projects", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id")
+    .notNull()
+    .references(() => companies.id),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("active"),
+  hourlyRate: numeric("hourly_rate", { precision: 12, scale: 2 }),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
 // Portal time tracking. Ownership is enforced app-side (where user_id =
 // session.user.id); RLS is enabled as a backstop. user_id holds the Neon
 // Auth user id (no hard FK into the neon_auth schema). company_id references
@@ -68,11 +91,21 @@ export const timeEntries = pgTable("time_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull(),
   companyId: uuid("company_id").references(() => companies.id),
+  // Optional project under the company. Plain uuid (no hard FK) — same pattern
+  // as billed_invoice_id; ownership/company-match enforced app-side.
+  projectId: uuid("project_id"),
   workDate: date("work_date").notNull(),
   startTime: time("start_time"),
   endTime: time("end_time"),
   client: text("client"),
   hours: numeric("hours", { precision: 5, scale: 2 }).notNull(),
+  // Effective hourly rate snapshotted at log time: entry override → project
+  // rate → company rate (null for retainer or rateless companies). Keeps
+  // historical invoices stable if a company/project rate later changes.
+  rate: numeric("rate", { precision: 12, scale: 2 }),
+  // Non-billable time is tracked but excluded from invoice generation; feeds
+  // utilization reporting (DEV-134).
+  billable: boolean("billable").notNull().default(true),
   notes: text("notes"),
   // Set when an entry is rolled into a generated invoice, so it isn't billed
   // twice. billed_invoice_id points at that invoice (no hard FK ordering needs).
