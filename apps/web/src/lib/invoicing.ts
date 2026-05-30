@@ -2,7 +2,14 @@ import "server-only";
 import { and, asc, eq, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { companies, companyMilestones, invoices, invoiceLineItems, timeEntries } from "@/db/schema";
+import {
+  companies,
+  companyMilestones,
+  expenses,
+  invoices,
+  invoiceLineItems,
+  timeEntries,
+} from "@/db/schema";
 import { latestCompletedPeriod, suggestInvoicePrefix, addDaysISO, NET_TERMS_DAYS } from "./billing";
 
 type Company = typeof companies.$inferSelect;
@@ -57,6 +64,7 @@ export type InvoiceDraft = {
   lineItems: DraftLineItem[];
   billedEntryIds: string[]; // hourly entries this draft would mark billed
   billedMilestoneIds: string[]; // milestones this draft would mark invoiced (DEV-119)
+  billedExpenseIds: string[]; // billable expenses this draft would mark billed (DEV-123)
 };
 
 // Compute the subtotal → tax → total breakdown for an invoice (DEV-116). Tax is
@@ -155,6 +163,42 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
   const issueDate = today;
   const dueDate = addDaysISO(issueDate, company.paymentTermsDays ?? NET_TERMS_DAYS);
 
+  // Billable, unbilled expenses for this company become line items on the
+  // invoice regardless of billing type (DEV-123), and get stamped billed.
+  const expenseRows = await db
+    .select({
+      id: expenses.id,
+      expenseDate: expenses.expenseDate,
+      category: expenses.category,
+      amount: expenses.amount,
+      notes: expenses.notes,
+    })
+    .from(expenses)
+    .where(
+      and(
+        eq(expenses.companyId, company.id),
+        eq(expenses.userId, userId),
+        eq(expenses.billable, true),
+        isNull(expenses.deletedAt),
+        isNull(expenses.billedAt),
+        lte(expenses.expenseDate, today),
+      ),
+    );
+  let expenseSubtotal = 0;
+  const expenseLines: DraftLineItem[] = expenseRows.map((e) => {
+    const amt = Number(e.amount);
+    expenseSubtotal += amt;
+    return {
+      description: `Expense — ${e.category}${e.notes ? `: ${e.notes}` : ""} (${e.expenseDate})`,
+      quantity: "1.00",
+      unitAmount: amt.toFixed(2),
+      lineTotal: amt.toFixed(2),
+      sourceType: "expense",
+      sourceId: e.id,
+    };
+  });
+  const billedExpenseIds = expenseRows.map((e) => e.id);
+
   if (company.billingType === "hourly") {
     const entries = await db
       .select({
@@ -196,6 +240,8 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         sourceId: e.id,
       };
     });
+    lineItems.push(...expenseLines);
+    subtotal += expenseSubtotal;
     const totals = computeInvoiceTotals(subtotal, company, null);
     return {
       invoiceNumber,
@@ -210,6 +256,7 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
       lineItems,
       billedEntryIds: entries.map((e) => e.id),
       billedMilestoneIds: [],
+      billedExpenseIds,
     };
   }
 
@@ -241,6 +288,8 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         sourceId: m.id,
       };
     });
+    lineItems.push(...expenseLines);
+    subtotal += expenseSubtotal;
     const totals = computeInvoiceTotals(subtotal, company, null);
     return {
       invoiceNumber,
@@ -255,13 +304,14 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
       lineItems,
       billedEntryIds: [],
       billedMilestoneIds: pending.map((m) => m.id),
+      billedExpenseIds,
     };
   }
 
   // fixed-fee — a single flat project fee; retainer — a single flat per-period line
   const isFixed = company.billingType === "fixed";
   const flat = Number((isFixed ? company.fixedAmount : company.retainerAmount) ?? 0);
-  const totals = computeInvoiceTotals(flat, company, null);
+  const totals = computeInvoiceTotals(flat + expenseSubtotal, company, null);
   return {
     invoiceNumber,
     currency: company.currency,
@@ -283,8 +333,10 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         sourceType: isFixed ? "fixed" : "retainer",
         sourceId: null,
       },
+      ...expenseLines,
     ],
     billedEntryIds: [],
     billedMilestoneIds: [],
+    billedExpenseIds,
   };
 }

@@ -7,6 +7,7 @@ import { db } from "@/db";
 import {
   companies,
   companyMilestones,
+  expenses,
   invoices,
   invoiceLineItems,
   timeEntries,
@@ -136,8 +137,22 @@ export async function createInvoice(
       .where(inArray(companyMilestones.id, milestoneIds));
   }
 
+  // Same for billable expenses (DEV-123): stamp only the ones whose lines were
+  // submitted and are legitimately in the draft.
+  const draftExpenseIds = new Set(draft.billedExpenseIds);
+  const expenseIds = lines
+    .filter((l) => l.sourceType === "expense" && l.sourceId && draftExpenseIds.has(l.sourceId))
+    .map((l) => l.sourceId as string);
+  if (expenseIds.length > 0) {
+    await db
+      .update(expenses)
+      .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
+      .where(inArray(expenses.id, expenseIds));
+  }
+
   revalidatePath("/account/invoices");
   revalidatePath("/account/companies");
+  revalidatePath("/account/expenses");
   revalidatePath("/account");
   return { ok: true };
 }
