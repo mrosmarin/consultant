@@ -50,7 +50,13 @@ export default async function InvoicesPage() {
       })
       .from(invoices)
       .leftJoin(companies, eq(invoices.companyId, companies.id))
-      .where(and(eq(invoices.userId, session.user.id), isNull(invoices.deletedAt)))
+      .where(
+        and(
+          eq(invoices.userId, session.user.id),
+          eq(invoices.type, "invoice"),
+          isNull(invoices.deletedAt),
+        ),
+      )
       .orderBy(desc(invoices.issueDate), desc(invoices.createdAt)),
   ]);
 

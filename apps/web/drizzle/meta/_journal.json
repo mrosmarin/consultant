@@ -134,6 +134,13 @@
       "when": 1780171793224,
       "tag": "0018_simple_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1780175131337,
+      "tag": "0019_colossal_living_mummy",
+      "breakpoints": true
     }
   ]
 }
