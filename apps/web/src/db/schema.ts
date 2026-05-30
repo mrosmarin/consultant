@@ -267,9 +267,14 @@ export const EXPENSE_CATEGORIES = [
   "Software",
   "Hardware",
   "Subcontractor",
+  "Mileage",
   "Other",
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+// Default per-mile reimbursement rate (US IRS standard, 2026), used as the form
+// default; the per-entry rate is editable (DEV-124).
+export const DEFAULT_MILEAGE_RATE = 0.7;
 
 // Reimbursable/non-reimbursable expenses logged against a client (and optional
 // project) — DEV-123. Billable unbilled expenses are pulled into an invoice as
@@ -284,6 +289,10 @@ export const expenses = pgTable("expenses", {
   expenseDate: date("expense_date").notNull(),
   category: text("category").notNull().default("Other"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  // Mileage (DEV-124): for category "Mileage", amount = distance × unit_rate.
+  // Null for ordinary expenses.
+  distance: numeric("distance", { precision: 10, scale: 2 }),
+  unitRate: numeric("unit_rate", { precision: 8, scale: 3 }),
   billable: boolean("billable").notNull().default(true),
   notes: text("notes"),
   receiptKey: text("receipt_key"),

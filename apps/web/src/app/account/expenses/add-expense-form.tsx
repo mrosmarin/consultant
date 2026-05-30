@@ -35,6 +35,11 @@ export function AddExpenseForm({
 }) {
   const [state, formAction, pending] = useActionState(addExpense, null);
   const [companyId, setCompanyId] = useState("");
+  const [mode, setMode] = useState<"expense" | "mileage">("expense");
+  // Mirrors DEFAULT_MILEAGE_RATE in the schema; the server re-validates.
+  const [distance, setDistance] = useState("");
+  const [rate, setRate] = useState("0.70");
+  const mileageAmount = Math.round((Number(distance) || 0) * (Number(rate) || 0) * 100) / 100;
 
   if (companies.length === 0) {
     return (
@@ -89,21 +94,69 @@ export function AddExpenseForm({
         <Input id="expenseDate" name="expenseDate" type="date" required />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="category">Category</Label>
-        <select id="category" name="category" className={selectClass} defaultValue="Other">
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
+        <Label htmlFor="mode">Type</Label>
+        <select
+          id="mode"
+          className={selectClass}
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "expense" | "mileage")}
+        >
+          <option value="expense">Expense</option>
+          <option value="mileage">Mileage</option>
         </select>
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="amount">Amount</Label>
-        <Input id="amount" name="amount" type="number" step="0.01" min="0" required />
-      </div>
-      <div className="grid gap-2">
+      {mode === "expense" ? (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="category">Category</Label>
+            <select id="category" name="category" className={selectClass} defaultValue="Other">
+              {CATEGORIES.filter((c) => c !== "Mileage").map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="amount">Amount</Label>
+            <Input id="amount" name="amount" type="number" step="0.01" min="0" required />
+          </div>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="category" value="Mileage" />
+          <div className="grid gap-2">
+            <Label htmlFor="distance">Distance (mi)</Label>
+            <Input
+              id="distance"
+              name="distance"
+              type="number"
+              step="0.1"
+              min="0"
+              value={distance}
+              onChange={(e) => setDistance(e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="unitRate">Rate (per mi)</Label>
+            <Input
+              id="unitRate"
+              name="unitRate"
+              type="number"
+              step="0.001"
+              min="0"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              required
+            />
+            <p className="text-muted-foreground text-xs">Amount: {mileageAmount.toFixed(2)}</p>
+          </div>
+        </>
+      )}
+
+      <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="receiptKey">Receipt reference (optional)</Label>
         <Input id="receiptKey" name="receiptKey" placeholder="link or note (upload comes with docs)" />
       </div>

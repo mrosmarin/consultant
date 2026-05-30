@@ -18,6 +18,8 @@ export async function addExpense(_prev: ExpenseState, formData: FormData): Promi
   const expenseDate = (formData.get("expenseDate") as string)?.trim();
   const category = ((formData.get("category") as string) ?? "Other").trim();
   const amountRaw = ((formData.get("amount") as string) ?? "").trim();
+  const distanceRaw = ((formData.get("distance") as string) ?? "").trim();
+  const unitRateRaw = ((formData.get("unitRate") as string) ?? "").trim();
   const billable = formData.get("billable") === "on" || formData.get("billable") === "true";
   const notes = ((formData.get("notes") as string) ?? "").trim() || null;
   const receiptKey = ((formData.get("receiptKey") as string) ?? "").trim() || null;
@@ -26,9 +28,29 @@ export async function addExpense(_prev: ExpenseState, formData: FormData): Promi
   if (!EXPENSE_CATEGORIES.includes(category as ExpenseCategory)) {
     return { ok: false, error: "Pick a valid category." };
   }
-  const amount = Number(amountRaw);
-  if (!amountRaw || !Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, error: "Amount must be greater than zero." };
+
+  // Mileage (DEV-124): amount = distance × per-mile rate (server-authoritative).
+  // Ordinary expenses take the entered amount.
+  let amount: number;
+  let distance: string | null = null;
+  let unitRate: string | null = null;
+  if (category === "Mileage") {
+    const d = Number(distanceRaw);
+    const r = Number(unitRateRaw);
+    if (!distanceRaw || !Number.isFinite(d) || d <= 0) {
+      return { ok: false, error: "Distance must be greater than zero." };
+    }
+    if (!unitRateRaw || !Number.isFinite(r) || r <= 0) {
+      return { ok: false, error: "Per-mile rate must be greater than zero." };
+    }
+    amount = Math.round(d * r * 100) / 100;
+    distance = d.toFixed(2);
+    unitRate = String(r);
+  } else {
+    amount = Number(amountRaw);
+    if (!amountRaw || !Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, error: "Amount must be greater than zero." };
+    }
   }
 
   // Verify the company belongs to the user.
@@ -48,6 +70,8 @@ export async function addExpense(_prev: ExpenseState, formData: FormData): Promi
     expenseDate,
     category,
     amount: amount.toFixed(2),
+    distance,
+    unitRate,
     billable,
     notes,
     receiptKey,

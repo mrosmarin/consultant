@@ -172,6 +172,8 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
       category: expenses.category,
       amount: expenses.amount,
       notes: expenses.notes,
+      distance: expenses.distance,
+      unitRate: expenses.unitRate,
     })
     .from(expenses)
     .where(
@@ -188,10 +190,16 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
   const expenseLines: DraftLineItem[] = expenseRows.map((e) => {
     const amt = Number(e.amount);
     expenseSubtotal += amt;
+    // Mileage lines spell out distance × rate (DEV-124); other expenses show
+    // their category + note.
+    const isMileage = e.category === "Mileage" && e.distance != null && e.unitRate != null;
+    const description = isMileage
+      ? `Mileage — ${Number(e.distance)} mi @ $${Number(e.unitRate)}/mi (${e.expenseDate})`
+      : `Expense — ${e.category}${e.notes ? `: ${e.notes}` : ""} (${e.expenseDate})`;
     return {
-      description: `Expense — ${e.category}${e.notes ? `: ${e.notes}` : ""} (${e.expenseDate})`,
-      quantity: "1.00",
-      unitAmount: amt.toFixed(2),
+      description,
+      quantity: isMileage ? Number(e.distance).toFixed(2) : "1.00",
+      unitAmount: isMileage ? Number(e.unitRate).toFixed(2) : amt.toFixed(2),
       lineTotal: amt.toFixed(2),
       sourceType: "expense",
       sourceId: e.id,

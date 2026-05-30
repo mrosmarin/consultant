@@ -30,6 +30,8 @@ export default async function ExpensesPage() {
         expenseDate: expenses.expenseDate,
         category: expenses.category,
         amount: expenses.amount,
+        distance: expenses.distance,
+        unitRate: expenses.unitRate,
         billable: expenses.billable,
         notes: expenses.notes,
         billedAt: expenses.billedAt,
@@ -85,7 +87,14 @@ export default async function ExpensesPage() {
                       {r.companyName ?? "—"}
                       {r.notes ? <span className="text-muted-foreground block text-xs">{r.notes}</span> : null}
                     </td>
-                    <td className="px-4 py-2">{r.category}</td>
+                    <td className="px-4 py-2">
+                      {r.category}
+                      {r.category === "Mileage" && r.distance != null && r.unitRate != null ? (
+                        <span className="text-muted-foreground block text-xs">
+                          {Number(r.distance)} mi @ ${Number(r.unitRate)}/mi
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2 text-right font-mono">
                       {formatMoney(Number(r.amount), r.currency)}
                     </td>
