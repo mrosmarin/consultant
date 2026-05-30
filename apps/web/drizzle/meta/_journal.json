@@ -169,6 +169,13 @@
       "when": 1780178356915,
       "tag": "0023_giant_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1780183799107,
+      "tag": "0024_pretty_big_bertha",
+      "breakpoints": true
     }
   ]
 }

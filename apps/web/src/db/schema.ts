@@ -301,3 +301,29 @@ export const expenses = pgTable("expenses", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
+
+// Files attached to a company (DEV-104). Bytes live in object storage (Vercel
+// Blob in prod) keyed by storage_key; this row holds metadata. Owner-scoped +
+// RLS + soft-delete.
+export const companyDocuments = pgTable("company_documents", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  name: text("name").notNull(),
+  contentType: text("content_type").notNull().default("application/octet-stream"),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  storageKey: text("storage_key").notNull(),
+  // Set when stored in Vercel Blob (its public URL); null for the DB fallback.
+  storageUrl: text("storage_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+// Dev/test fallback object store used when BLOB_READ_WRITE_TOKEN is unset (the
+// sandbox can't reach Vercel Blob). Bytes are held base64 in `data`, keyed by
+// the same storage_key. In prod (token set) this table is unused.
+export const documentBlobs = pgTable("document_blobs", {
+  storageKey: text("storage_key").primaryKey(),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
