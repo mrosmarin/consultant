@@ -31,6 +31,7 @@ type ParsedCompany = {
   retainerAmount: string | null;
   billingFrequency: BillingFrequency;
   billingAnchorDay: number | null;
+  paymentTermsDays: number;
   invoicePrefix: string;
 };
 
@@ -46,6 +47,7 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
   const retainerRaw = ((formData.get("retainerAmount") as string) ?? "").trim();
   const anchorRaw = ((formData.get("billingAnchorDay") as string) ?? "").trim();
   const prefixRaw = ((formData.get("invoicePrefix") as string) ?? "").trim();
+  const termsRaw = ((formData.get("paymentTermsDays") as string) ?? "").trim();
 
   if (!name) return { error: "Company name is required." };
   if (!BILLING_TYPES.includes(billingType)) return { error: "Pick a billing type." };
@@ -77,6 +79,16 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
     billingAnchorDay = anchor;
   }
 
+  // Net payment terms in days (0 = due on receipt); default 30.
+  let paymentTermsDays = 30;
+  if (termsRaw) {
+    const t = Number(termsRaw);
+    if (!Number.isInteger(t) || t < 0 || t > 365) {
+      return { error: "Payment terms must be a whole number of days (0–365)." };
+    }
+    paymentTermsDays = t;
+  }
+
   // Normalize the prefix (uppercase alphanumerics); fall back to a suggestion
   // from the name so generated invoice numbers always have a prefix.
   const cleanedPrefix = prefixRaw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
@@ -94,6 +106,7 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
       retainerAmount,
       billingFrequency,
       billingAnchorDay,
+      paymentTermsDays,
       invoicePrefix,
     },
   };
