@@ -33,6 +33,7 @@ export async function addTimeEntry(
   const endTime = ((formData.get("endTime") as string) ?? "").trim() || null;
   const hoursRaw = ((formData.get("hours") as string) ?? "").trim();
   const rateRaw = ((formData.get("rate") as string) ?? "").trim();
+  const billable = formData.get("billable") === "true";
   const notes = ((formData.get("notes") as string) ?? "").trim() || null;
 
   if (!workDate || !companyId) {
@@ -121,6 +122,7 @@ export async function addTimeEntry(
     endTime,
     hours: hours.toFixed(2),
     rate,
+    billable,
     notes,
   });
   revalidatePath("/account/timesheets");

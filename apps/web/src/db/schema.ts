@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, date, time, numeric, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, date, time, numeric, integer, boolean } from "drizzle-orm/pg-core";
 
 // Contact / lead-capture submissions from the public site.
 // RLS enabled with a public-insert policy in the migration.
@@ -103,6 +103,9 @@ export const timeEntries = pgTable("time_entries", {
   // rate → company rate (null for retainer or rateless companies). Keeps
   // historical invoices stable if a company/project rate later changes.
   rate: numeric("rate", { precision: 12, scale: 2 }),
+  // Non-billable time is tracked but excluded from invoice generation; feeds
+  // utilization reporting (DEV-134).
+  billable: boolean("billable").notNull().default(true),
   notes: text("notes"),
   // Set when an entry is rolled into a generated invoice, so it isn't billed
   // twice. billed_invoice_id points at that invoice (no hard FK ordering needs).

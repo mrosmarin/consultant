@@ -100,9 +100,22 @@ export function AddTimeEntryForm({
         <Input id="hours" name="hours" type="number" step="0.25" min="0" max="24" />
       </div>
 
-      <div className="grid gap-2 sm:col-span-2">
+      <div className="grid gap-2">
         <Label htmlFor="rate">Rate override (optional)</Label>
         <Input id="rate" name="rate" type="number" step="0.01" min="0" placeholder="Defaults to the project or company rate" />
+      </div>
+      <div className="flex items-end gap-2 pb-2">
+        <input
+          id="billable"
+          name="billable"
+          type="checkbox"
+          value="true"
+          defaultChecked
+          className="border-input size-4 rounded border"
+        />
+        <Label htmlFor="billable" className="font-normal">
+          Billable (uncheck to track but not invoice)
+        </Label>
       </div>
 
       <div className="grid gap-2">
