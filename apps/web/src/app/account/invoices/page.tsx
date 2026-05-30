@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 const statusBadge: Record<string, string> = {
   draft: "bg-secondary text-secondary-foreground",
   sent: "bg-brand/15 text-brand",
+  viewed: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
   paid: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   overdue: "bg-destructive/15 text-destructive",
 };
@@ -47,6 +48,8 @@ export default async function InvoicesPage() {
         taxAmount: invoices.taxAmount,
         amount: invoices.amount,
         status: invoices.status,
+        publicToken: invoices.publicToken,
+        viewedAt: invoices.viewedAt,
       })
       .from(invoices)
       .leftJoin(companies, eq(invoices.companyId, companies.id))
@@ -162,7 +165,17 @@ export default async function InvoicesPage() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t">
-                    <td className="px-4 py-2 font-mono text-xs">{r.invoiceNumber}</td>
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {r.invoiceNumber}
+                      <a
+                        href={`/invoice/${r.publicToken}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand block text-xs font-normal hover:underline"
+                      >
+                        Public link ↗
+                      </a>
+                    </td>
                     <td className="px-4 py-2">
                       {r.companyName ?? r.client ?? "—"}
                       {(linesByInvoice.get(r.id) ?? []).map((l, i) => (
@@ -220,6 +233,11 @@ export default async function InvoicesPage() {
                           Save
                         </button>
                       </form>
+                      {r.viewedAt ? (
+                        <span className="text-muted-foreground mt-1 block text-xs">
+                          Viewed {new Date(r.viewedAt).toISOString().slice(0, 10)}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-3">
