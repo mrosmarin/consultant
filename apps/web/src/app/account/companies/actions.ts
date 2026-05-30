@@ -34,6 +34,9 @@ type ParsedCompany = {
   billingAnchorDay: number | null;
   paymentTermsDays: number;
   invoicePrefix: string;
+  taxRate: string | null;
+  taxLabel: string | null;
+  taxExempt: boolean;
 };
 
 function parseCompany(formData: FormData): { values: ParsedCompany } | { error: string } {
@@ -49,6 +52,9 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
   const anchorRaw = ((formData.get("billingAnchorDay") as string) ?? "").trim();
   const prefixRaw = ((formData.get("invoicePrefix") as string) ?? "").trim();
   const termsRaw = ((formData.get("paymentTermsDays") as string) ?? "").trim();
+  const taxRateRaw = ((formData.get("taxRate") as string) ?? "").trim();
+  const taxLabel = ((formData.get("taxLabel") as string) ?? "").trim() || null;
+  const taxExempt = formData.get("taxExempt") === "on" || formData.get("taxExempt") === "true";
 
   if (!name) return { error: "Company name is required." };
   if (!BILLING_TYPES.includes(billingType)) return { error: "Pick a billing type." };
@@ -95,6 +101,16 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
   const cleanedPrefix = prefixRaw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
   const invoicePrefix = cleanedPrefix || suggestInvoicePrefix(name);
 
+  // Optional default tax rate (percent, 0–100). Blank = no rate.
+  let taxRate: string | null = null;
+  if (taxRateRaw) {
+    const r = Number(taxRateRaw);
+    if (!Number.isFinite(r) || r < 0 || r > 100) {
+      return { error: "Tax rate must be a percentage between 0 and 100." };
+    }
+    taxRate = String(r);
+  }
+
   return {
     values: {
       name,
@@ -109,6 +125,9 @@ function parseCompany(formData: FormData): { values: ParsedCompany } | { error: 
       billingAnchorDay,
       paymentTermsDays,
       invoicePrefix,
+      taxRate,
+      taxLabel,
+      taxExempt,
     },
   };
 }
@@ -219,6 +238,10 @@ export async function generateInvoice(
       invoiceNumber: draft.invoiceNumber,
       issueDate: draft.issueDate,
       dueDate: draft.dueDate,
+      subtotal: draft.subtotal,
+      taxRate: draft.taxRate,
+      taxLabel: draft.taxLabel,
+      taxAmount: draft.taxAmount,
       amount: draft.amount,
       status: "draft",
       notes: draft.notes,

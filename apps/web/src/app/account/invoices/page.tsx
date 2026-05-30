@@ -40,6 +40,9 @@ export default async function InvoicesPage() {
         notes: invoices.notes,
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
+        subtotal: invoices.subtotal,
+        taxLabel: invoices.taxLabel,
+        taxAmount: invoices.taxAmount,
         amount: invoices.amount,
         status: invoices.status,
       })
@@ -63,6 +66,9 @@ export default async function InvoicesPage() {
         notes: d.notes,
         hours: d.hours,
         billingType: c.billingType,
+        taxRate: c.taxRate,
+        taxLabel: c.taxLabel,
+        taxExempt: c.taxExempt,
         lineItems: d.lineItems.map((l) => ({
           description: l.description,
           quantity: l.quantity,
@@ -138,7 +144,15 @@ export default async function InvoicesPage() {
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">{r.issueDate}</td>
                     <td className="px-4 py-2 font-mono text-xs">{r.dueDate}</td>
-                    <td className="px-4 py-2 text-right font-mono">{usd.format(Number(r.amount))}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {usd.format(Number(r.amount))}
+                      {Number(r.taxAmount ?? 0) > 0 ? (
+                        <span className="text-muted-foreground block text-xs font-normal">
+                          {usd.format(Number(r.subtotal ?? 0))} + {r.taxLabel ?? "tax"}{" "}
+                          {usd.format(Number(r.taxAmount))}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-4 py-2">
                       <form action={updateInvoiceStatus} className="flex items-center gap-2">
                         <input type="hidden" name="id" value={r.id} />

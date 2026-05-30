@@ -42,6 +42,9 @@ export type CompanyFormValues = {
   billingAnchorDay: number | null;
   paymentTermsDays: number | null;
   invoicePrefix: string | null;
+  taxRate: string | null;
+  taxLabel: string | null;
+  taxExempt: boolean;
 };
 
 export function CompanyForm({ company }: { company?: CompanyFormValues }) {
@@ -196,6 +199,38 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
           defaultValue={company?.billingAnchorDay ?? ""}
         />
       </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="taxRate">Default tax rate (%)</Label>
+        <Input
+          id="taxRate"
+          name="taxRate"
+          type="number"
+          step="0.001"
+          min="0"
+          max="100"
+          placeholder="e.g. 8.875"
+          defaultValue={company?.taxRate ?? ""}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="taxLabel">Tax label (optional)</Label>
+        <Input
+          id="taxLabel"
+          name="taxLabel"
+          placeholder="e.g. NY Sales Tax"
+          defaultValue={company?.taxLabel ?? ""}
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+        <input
+          type="checkbox"
+          name="taxExempt"
+          defaultChecked={company?.taxExempt ?? false}
+          className="size-4"
+        />
+        Tax-exempt client (never apply tax, even if a rate is set)
+      </label>
 
       <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="notes">Notes (optional)</Label>
