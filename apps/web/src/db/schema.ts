@@ -57,6 +57,10 @@ export const companies = pgTable("companies", {
   // Prefix for generated invoice numbers (e.g. "ACME" → ACME-0001). Suggested
   // from the name at onboarding; editable.
   invoicePrefix: text("invoice_prefix"),
+  // ISO 4217 currency this client is invoiced in (DEV-117); snapshotted onto
+  // each invoice at create. Default USD. No FX conversion — amounts stay in
+  // their own currency.
+  currency: text("currency").notNull().default("USD"),
   // Default tax for this client's invoices (DEV-116). Rate is a percent
   // (e.g. 8.875 = 8.875%); label is shown on the invoice (e.g. "NY Sales Tax").
   // taxExempt overrides the rate — no tax is applied regardless of rate.
@@ -158,6 +162,8 @@ export const invoices = pgTable("invoices", {
   client: text("client"),
   issueDate: date("issue_date").notNull(),
   dueDate: date("due_date").notNull(),
+  // ISO 4217 currency captured from the company at create (DEV-117). Default USD.
+  currency: text("currency").notNull().default("USD"),
   // Money breakdown (DEV-116): subtotal = Σ(line_total); tax snapshotted from the
   // company at create time (rate is a percent, label shown on the invoice);
   // amount = subtotal + tax_amount (the grand total — kept authoritative for

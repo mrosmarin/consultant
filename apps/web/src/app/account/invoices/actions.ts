@@ -147,6 +147,7 @@ export async function createInvoice(
       invoiceNumber,
       issueDate,
       dueDate,
+      currency: company.currency,
       subtotal: totals.subtotal,
       discountType: totals.discountType,
       discountValue: totals.discountValue,

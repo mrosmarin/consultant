@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { suggestInvoicePrefix } from "@/lib/billing";
+import { CURRENCIES } from "@/lib/money";
 
 import { saveCompany } from "./actions";
 
@@ -42,6 +43,7 @@ export type CompanyFormValues = {
   billingAnchorDay: number | null;
   paymentTermsDays: number | null;
   invoicePrefix: string | null;
+  currency: string | null;
   taxRate: string | null;
   taxLabel: string | null;
   taxExempt: boolean;
@@ -140,6 +142,22 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
           {BILLING_FREQUENCY_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="currency">Currency</Label>
+        <select
+          id="currency"
+          name="currency"
+          defaultValue={company?.currency ?? "USD"}
+          className={selectClass}
+        >
+          {CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </select>

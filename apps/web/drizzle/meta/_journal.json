@@ -120,6 +120,13 @@
       "when": 1780169806160,
       "tag": "0016_gorgeous_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1780170505194,
+      "tag": "0017_pale_toro",
+      "breakpoints": true
     }
   ]
 }
