@@ -61,6 +61,22 @@ export const companies = pgTable("companies", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
+// Contacts at a client company (DEV-110). The legacy single contact on
+// `companies` is backfilled here as primary by migration 0012. Plain uuid
+// company_id (no hard FK — established pattern); owner-scoped + RLS + soft-delete.
+export const companyContacts = pgTable("company_contacts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  role: text("role"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
 export const PROJECT_STATUSES = ["active", "closed"] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
