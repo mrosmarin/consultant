@@ -57,6 +57,12 @@ export const companies = pgTable("companies", {
   // Prefix for generated invoice numbers (e.g. "ACME" → ACME-0001). Suggested
   // from the name at onboarding; editable.
   invoicePrefix: text("invoice_prefix"),
+  // Default tax for this client's invoices (DEV-116). Rate is a percent
+  // (e.g. 8.875 = 8.875%); label is shown on the invoice (e.g. "NY Sales Tax").
+  // taxExempt overrides the rate — no tax is applied regardless of rate.
+  taxRate: numeric("tax_rate", { precision: 6, scale: 3 }),
+  taxLabel: text("tax_label"),
+  taxExempt: boolean("tax_exempt").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
@@ -152,6 +158,14 @@ export const invoices = pgTable("invoices", {
   client: text("client"),
   issueDate: date("issue_date").notNull(),
   dueDate: date("due_date").notNull(),
+  // Money breakdown (DEV-116): subtotal = Σ(line_total); tax snapshotted from the
+  // company at create time (rate is a percent, label shown on the invoice);
+  // amount = subtotal + tax_amount (the grand total — kept authoritative for
+  // back-compat). Pre-tax invoices have subtotal = amount and tax_amount = 0.
+  subtotal: numeric("subtotal", { precision: 12, scale: 2 }),
+  taxRate: numeric("tax_rate", { precision: 6, scale: 3 }),
+  taxLabel: text("tax_label"),
+  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: text("status").notNull().default("draft"),
   notes: text("notes"),

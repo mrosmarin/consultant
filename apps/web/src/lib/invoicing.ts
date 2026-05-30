@@ -16,9 +16,21 @@ export type DraftLineItem = {
   sourceId: string | null;
 };
 
+export type TaxBreakdown = {
+  subtotal: string; // Σ(lineTotal)
+  taxRate: string | null; // percent, e.g. "8.875"; null when no tax applies
+  taxLabel: string | null;
+  taxAmount: string; // "0.00" when no tax
+  total: string; // subtotal + taxAmount
+};
+
 export type InvoiceDraft = {
   invoiceNumber: string;
-  amount: string; // total = Σ(lineTotal)
+  subtotal: string;
+  taxRate: string | null;
+  taxLabel: string | null;
+  taxAmount: string;
+  amount: string; // grand total = subtotal + taxAmount
   issueDate: string;
   dueDate: string;
   notes: string;
@@ -28,6 +40,26 @@ export type InvoiceDraft = {
   lineItems: DraftLineItem[];
   billedEntryIds: string[]; // hourly entries this draft would mark billed
 };
+
+// Compute the subtotal → tax → total breakdown for an invoice (DEV-116). Tax is
+// a single percentage applied to the subtotal, snapshotted from the company.
+// A tax-exempt client (or no/zero rate) yields zero tax and null rate/label.
+export function computeTax(
+  subtotal: number,
+  company: Pick<Company, "taxRate" | "taxLabel" | "taxExempt">,
+): TaxBreakdown {
+  const rate = company.taxExempt ? 0 : Number(company.taxRate ?? 0);
+  const applies = rate > 0;
+  // tax = round(subtotal × rate/100) to cents → Math.round(subtotal × rate) / 100.
+  const taxAmount = applies ? Math.round(subtotal * rate) / 100 : 0;
+  return {
+    subtotal: subtotal.toFixed(2),
+    taxRate: applies ? String(rate) : null,
+    taxLabel: applies ? (company.taxLabel?.trim() || "Tax") : null,
+    taxAmount: taxAmount.toFixed(2),
+    total: (subtotal + taxAmount).toFixed(2),
+  };
+}
 
 // Persist line items for a freshly-created invoice (sortOrder follows array
 // order). Used by both the Generate action and the manual create action.
@@ -53,8 +85,8 @@ export async function insertInvoiceLineItems(
 }
 
 // Single source of truth for what an invoice for a company should look like
-// right now (header + line items). Used by the "Generate invoice" button, the
-// invoice form's prefill, and the form's create action — so they can never
+// right now (header + line items + tax). Used by the "Generate invoice" button,
+// the invoice form's prefill, and the form's create action — so they can never
 // drift. Pure read (no writes).
 export async function buildInvoiceDraft(company: Company, userId: string): Promise<InvoiceDraft> {
   const today = new Date().toISOString().slice(0, 10);
@@ -93,16 +125,16 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
       );
     // One line item per billable unbilled time entry, at its own snapshotted
     // rate (entry override → project → company; fall back to the company rate
-    // for legacy entries). Total = Σ(lineTotal).
+    // for legacy entries). Subtotal = Σ(lineTotal).
     const fallback = Number(company.hourlyRate ?? 0);
     let hours = 0;
-    let amount = 0;
+    let subtotal = 0;
     const lineItems: DraftLineItem[] = entries.map((e) => {
       const h = Number(e.hours);
       const r = e.rate != null ? Number(e.rate) : fallback;
       const total = h * r;
       hours += h;
-      amount += total;
+      subtotal += total;
       return {
         description: `${e.workDate}${e.task ? ` — ${e.task}` : ""} (${h} hrs @ $${r.toFixed(2)}/hr)`,
         quantity: h.toFixed(2),
@@ -112,9 +144,14 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         sourceId: e.id,
       };
     });
+    const tax = computeTax(subtotal, company);
     return {
       invoiceNumber,
-      amount: amount.toFixed(2),
+      subtotal: tax.subtotal,
+      taxRate: tax.taxRate,
+      taxLabel: tax.taxLabel,
+      taxAmount: tax.taxAmount,
+      amount: tax.total,
       issueDate,
       dueDate,
       notes: `Auto-generated • ${period.start} – ${period.end} • ${hours} hrs`,
@@ -128,9 +165,14 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
 
   // retainer — a single flat line for the period
   const retainer = Number(company.retainerAmount ?? 0);
+  const tax = computeTax(retainer, company);
   return {
     invoiceNumber,
-    amount: retainer.toFixed(2),
+    subtotal: tax.subtotal,
+    taxRate: tax.taxRate,
+    taxLabel: tax.taxLabel,
+    taxAmount: tax.taxAmount,
+    amount: tax.total,
     issueDate,
     dueDate,
     notes: `Auto-generated retainer • ${period.start} – ${period.end}`,

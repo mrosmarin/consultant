@@ -6,7 +6,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, invoices, timeEntries, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { buildInvoiceDraft, insertInvoiceLineItems, type DraftLineItem } from "@/lib/invoicing";
+import { buildInvoiceDraft, computeTax, insertInvoiceLineItems, type DraftLineItem } from "@/lib/invoicing";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
 
@@ -73,8 +73,8 @@ export async function createInvoice(
     sourceType: "manual",
     sourceId: null,
   }));
-  const amount = lines.reduce((sum, l) => sum + Number(l.lineTotal), 0);
-  if (amount <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
+  const subtotal = lines.reduce((sum, l) => sum + Number(l.lineTotal), 0);
+  if (subtotal <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
 
   // Verify the company is one the signed-in user owns (not soft-deleted).
   const [company] = await db
@@ -95,6 +95,10 @@ export async function createInvoice(
   // so the same time can't be invoiced twice. The draft tells us which to stamp.
   const draft = await buildInvoiceDraft(company, session.user.id);
 
+  // Tax is snapshotted from the company onto the invoice (DEV-116), applied to
+  // the (possibly edited) line subtotal — never trusted from the client.
+  const tax = computeTax(subtotal, company);
+
   const [invoice] = await db
     .insert(invoices)
     .values({
@@ -103,7 +107,11 @@ export async function createInvoice(
       invoiceNumber,
       issueDate,
       dueDate,
-      amount: amount.toFixed(2),
+      subtotal: tax.subtotal,
+      taxRate: tax.taxRate,
+      taxLabel: tax.taxLabel,
+      taxAmount: tax.taxAmount,
+      amount: tax.total,
       status: "draft",
       notes,
     })

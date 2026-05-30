@@ -22,6 +22,9 @@ export type InvoicePrefill = {
   hours: number;
   billingType: string;
   lineItems: PrefillLine[];
+  taxRate: string | null; // percent, e.g. "8.875"
+  taxLabel: string | null;
+  taxExempt: boolean;
 };
 
 type Row = { description: string; quantity: string; unitAmount: string };
@@ -85,7 +88,14 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const removeRow = (i: number) => setRows((rs) => (rs.length > 1 ? rs.filter((_, idx) => idx !== i) : rs));
 
-  const grandTotal = rows.reduce((sum, r) => sum + lineTotal(r), 0);
+  const selected = prefills.find((p) => p.id === companyId);
+  const subtotal = rows.reduce((sum, r) => sum + lineTotal(r), 0);
+  // Mirror the server's computeTax for a live preview; the server value is
+  // authoritative on submit.
+  const taxRateNum = selected && !selected.taxExempt ? Number(selected.taxRate ?? 0) : 0;
+  const taxApplies = taxRateNum > 0;
+  const taxAmount = taxApplies ? Math.round(subtotal * taxRateNum) / 100 : 0;
+  const grandTotal = subtotal + taxAmount;
   const lineItemsJson = JSON.stringify(
     rows.map((r) => ({
       description: r.description,
@@ -212,6 +222,22 @@ export function AddInvoiceForm({ prefills }: { prefills: InvoicePrefill[] }) {
               ))}
             </tbody>
             <tfoot>
+              <tr className="border-t">
+                <td colSpan={3} className="px-3 py-2 text-right text-sm">
+                  Subtotal
+                </td>
+                <td className="px-3 py-2 text-right font-mono">{usd.format(subtotal)}</td>
+                <td />
+              </tr>
+              {taxApplies ? (
+                <tr>
+                  <td colSpan={3} className="px-3 py-2 text-right text-sm">
+                    {selected?.taxLabel?.trim() || "Tax"} ({taxRateNum}%)
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono">{usd.format(taxAmount)}</td>
+                  <td />
+                </tr>
+              ) : null}
               <tr className="border-t">
                 <td colSpan={3} className="px-3 py-2 text-right text-sm font-medium">
                   Total
