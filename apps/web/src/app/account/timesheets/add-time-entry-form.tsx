@@ -100,6 +100,11 @@ export function AddTimeEntryForm({
         <Input id="hours" name="hours" type="number" step="0.25" min="0" max="24" />
       </div>
 
+      <div className="grid gap-2 sm:col-span-2">
+        <Label htmlFor="rate">Rate override (optional)</Label>
+        <Input id="rate" name="rate" type="number" step="0.01" min="0" placeholder="Defaults to the project or company rate" />
+      </div>
+
       <div className="grid gap-2">
         <Label htmlFor="startTime">Start time (optional)</Label>
         <Input id="startTime" name="startTime" type="time" />

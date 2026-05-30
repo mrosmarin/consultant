@@ -99,6 +99,10 @@ export const timeEntries = pgTable("time_entries", {
   endTime: time("end_time"),
   client: text("client"),
   hours: numeric("hours", { precision: 5, scale: 2 }).notNull(),
+  // Effective hourly rate snapshotted at log time: entry override → project
+  // rate → company rate (null for retainer or rateless companies). Keeps
+  // historical invoices stable if a company/project rate later changes.
+  rate: numeric("rate", { precision: 12, scale: 2 }),
   notes: text("notes"),
   // Set when an entry is rolled into a generated invoice, so it isn't billed
   // twice. billed_invoice_id points at that invoice (no hard FK ordering needs).

@@ -30,6 +30,7 @@ export default async function TimesheetsPage() {
         startTime: timeEntries.startTime,
         endTime: timeEntries.endTime,
         hours: timeEntries.hours,
+        rate: timeEntries.rate,
         notes: timeEntries.notes,
         client: timeEntries.client,
         companyName: companies.name,
@@ -72,6 +73,7 @@ export default async function TimesheetsPage() {
                   <th className="px-4 py-2 font-medium">Project</th>
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Hours</th>
+                  <th className="px-4 py-2 font-medium">Rate</th>
                   <th className="px-4 py-2 font-medium">Notes</th>
                   <th className="px-4 py-2" />
                 </tr>
@@ -88,6 +90,9 @@ export default async function TimesheetsPage() {
                         : "—"}
                     </td>
                     <td className="px-4 py-2 font-mono">{r.hours}</td>
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {r.rate ? `$${Number(r.rate).toFixed(2)}` : "—"}
+                    </td>
                     <td className="text-muted-foreground px-4 py-2">{r.notes}</td>
                     <td className="px-4 py-2 text-right">
                       <form action={deleteTimeEntry}>
