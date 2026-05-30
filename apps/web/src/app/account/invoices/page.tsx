@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
@@ -190,12 +191,22 @@ export default async function InvoicesPage() {
                       </form>
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <form action={deleteInvoice}>
-                        <input type="hidden" name="id" value={r.id} />
-                        <button className="text-muted-foreground hover:text-destructive text-xs">
-                          Delete
-                        </button>
-                      </form>
+                      <div className="flex justify-end gap-3">
+                        {r.status === "draft" ? (
+                          <Link
+                            href={`/account/invoices/${r.id}/edit`}
+                            className="text-muted-foreground hover:text-foreground text-xs"
+                          >
+                            Edit
+                          </Link>
+                        ) : null}
+                        <form action={deleteInvoice}>
+                          <input type="hidden" name="id" value={r.id} />
+                          <button className="text-muted-foreground hover:text-destructive text-xs">
+                            Delete
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 ))}
