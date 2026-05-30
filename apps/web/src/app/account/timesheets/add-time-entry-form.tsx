@@ -91,6 +91,11 @@ export function AddTimeEntryForm({
         </div>
       ) : null}
 
+      <div className="grid gap-2 sm:col-span-2">
+        <Label htmlFor="task">Task / activity (optional)</Label>
+        <Input id="task" name="task" placeholder="e.g. Discovery call, Build feature X" />
+      </div>
+
       <div className="grid gap-2">
         <Label htmlFor="workDate">Date</Label>
         <Input id="workDate" name="workDate" type="date" defaultValue={today} required />

@@ -51,9 +51,28 @@ export const companies = pgTable("companies", {
   retainerAmount: numeric("retainer_amount", { precision: 12, scale: 2 }),
   billingFrequency: text("billing_frequency").notNull().default("monthly"),
   billingAnchorDay: integer("billing_anchor_day"),
+  // Net payment terms in days (0 = due on receipt). Drives the invoice due-date
+  // default. Defaults to 30 (NET_TERMS_DAYS).
+  paymentTermsDays: integer("payment_terms_days").notNull().default(30),
   // Prefix for generated invoice numbers (e.g. "ACME" → ACME-0001). Suggested
   // from the name at onboarding; editable.
   invoicePrefix: text("invoice_prefix"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+// Contacts at a client company (DEV-110). The legacy single contact on
+// `companies` is backfilled here as primary by migration 0012. Plain uuid
+// company_id (no hard FK — established pattern); owner-scoped + RLS + soft-delete.
+export const companyContacts = pgTable("company_contacts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  role: text("role"),
+  isPrimary: boolean("is_primary").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
@@ -94,6 +113,8 @@ export const timeEntries = pgTable("time_entries", {
   // Optional project under the company. Plain uuid (no hard FK) — same pattern
   // as billed_invoice_id; ownership/company-match enforced app-side.
   projectId: uuid("project_id"),
+  // Free-text task / activity within the project/company (e.g. "Discovery call").
+  task: text("task"),
   workDate: date("work_date").notNull(),
   startTime: time("start_time"),
   endTime: time("end_time"),

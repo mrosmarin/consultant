@@ -40,6 +40,7 @@ export type CompanyFormValues = {
   retainerAmount: string | null;
   billingFrequency: string;
   billingAnchorDay: number | null;
+  paymentTermsDays: number | null;
   invoicePrefix: string | null;
 };
 
@@ -138,6 +139,22 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
               {o.label}
             </option>
           ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="paymentTermsDays">Payment terms</Label>
+        <select
+          id="paymentTermsDays"
+          name="paymentTermsDays"
+          defaultValue={String(company?.paymentTermsDays ?? 30)}
+          className={selectClass}
+        >
+          <option value="0">Due on receipt</option>
+          <option value="15">Net 15</option>
+          <option value="30">Net 30</option>
+          <option value="45">Net 45</option>
+          <option value="60">Net 60</option>
         </select>
       </div>
 

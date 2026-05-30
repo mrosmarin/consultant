@@ -36,6 +36,7 @@ export default async function TimesheetsPage() {
         client: timeEntries.client,
         companyName: companies.name,
         projectName: projects.name,
+        task: timeEntries.task,
       })
       .from(timeEntries)
       .leftJoin(companies, eq(timeEntries.companyId, companies.id))
@@ -84,7 +85,10 @@ export default async function TimesheetsPage() {
                   <tr key={r.id} className="border-t">
                     <td className="px-4 py-2 font-mono text-xs">{r.workDate}</td>
                     <td className="px-4 py-2">{r.companyName ?? r.client ?? "—"}</td>
-                    <td className="text-muted-foreground px-4 py-2">{r.projectName ?? "—"}</td>
+                    <td className="text-muted-foreground px-4 py-2">
+                      {r.projectName ?? "—"}
+                      {r.task ? <span className="block text-xs">{r.task}</span> : null}
+                    </td>
                     <td className="px-4 py-2 font-mono text-xs">
                       {r.startTime && r.endTime
                         ? `${hhmm(r.startTime)}–${hhmm(r.endTime)}`

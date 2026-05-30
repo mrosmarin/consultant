@@ -35,7 +35,7 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
   const invoiceNumber = `${prefix}-${String((n ?? 0) + 1).padStart(4, "0")}`;
 
   const issueDate = today;
-  const dueDate = addDaysISO(issueDate, NET_TERMS_DAYS);
+  const dueDate = addDaysISO(issueDate, company.paymentTermsDays ?? NET_TERMS_DAYS);
 
   if (company.billingType === "hourly") {
     const entries = await db
