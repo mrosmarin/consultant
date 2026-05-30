@@ -44,6 +44,7 @@ export default async function DashboardPage() {
     .where(
       and(
         eq(invoices.userId, session.user.id),
+        eq(invoices.type, "invoice"),
         isNull(invoices.deletedAt),
         ne(invoices.status, "paid"),
       ),

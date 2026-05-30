@@ -9,6 +9,7 @@ import {
   companies,
   companyContacts,
   companyMilestones,
+  expenses,
   invoices,
   timeEntries,
   BILLING_TYPES,
@@ -248,11 +249,16 @@ export async function generateInvoice(
   }
 
   const draft = await buildInvoiceDraft(company, session.user.id);
-  if (company.billingType === "hourly" && draft.hours <= 0) {
-    return { ok: false, error: `No unbilled hours up to ${draft.periodEnd}.` };
+  // Hourly with no hours can still invoice if there are billable expenses.
+  if (company.billingType === "hourly" && draft.hours <= 0 && draft.billedExpenseIds.length === 0) {
+    return { ok: false, error: `Nothing to bill up to ${draft.periodEnd} (no unbilled hours or expenses).` };
   }
-  if (company.billingType === "milestone" && draft.billedMilestoneIds.length === 0) {
-    return { ok: false, error: "No pending milestones to bill — add some on the company first." };
+  if (
+    company.billingType === "milestone" &&
+    draft.billedMilestoneIds.length === 0 &&
+    draft.billedExpenseIds.length === 0
+  ) {
+    return { ok: false, error: "Nothing to bill — add a pending milestone or a billable expense first." };
   }
 
   const [invoice] = await db
@@ -296,9 +302,18 @@ export async function generateInvoice(
       .where(inArray(companyMilestones.id, draft.billedMilestoneIds));
   }
 
+  // Stamp the billed expenses (DEV-123) so they aren't billed again.
+  if (draft.billedExpenseIds.length > 0) {
+    await db
+      .update(expenses)
+      .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
+      .where(inArray(expenses.id, draft.billedExpenseIds));
+  }
+
   revalidatePath("/account/invoices");
   revalidatePath("/account/companies");
   revalidatePath(`/account/companies/${companyId}/edit`);
+  revalidatePath("/account/expenses");
   revalidatePath("/account");
   return { ok: true, invoiceNumber: draft.invoiceNumber, amount: draft.amount };
 }

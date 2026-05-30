@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 const statusBadge: Record<string, string> = {
   draft: "bg-secondary text-secondary-foreground",
   sent: "bg-brand/15 text-brand",
+  viewed: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
   paid: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   overdue: "bg-destructive/15 text-destructive",
 };
@@ -47,10 +48,18 @@ export default async function InvoicesPage() {
         taxAmount: invoices.taxAmount,
         amount: invoices.amount,
         status: invoices.status,
+        publicToken: invoices.publicToken,
+        viewedAt: invoices.viewedAt,
       })
       .from(invoices)
       .leftJoin(companies, eq(invoices.companyId, companies.id))
-      .where(and(eq(invoices.userId, session.user.id), isNull(invoices.deletedAt)))
+      .where(
+        and(
+          eq(invoices.userId, session.user.id),
+          eq(invoices.type, "invoice"),
+          isNull(invoices.deletedAt),
+        ),
+      )
       .orderBy(desc(invoices.issueDate), desc(invoices.createdAt)),
   ]);
 
@@ -101,6 +110,24 @@ export default async function InvoicesPage() {
     linesByInvoice.set(l.invoiceId, arr);
   }
 
+  // Issued credit notes reduce an invoice's effective outstanding (DEV-121).
+  const creditRows = await db
+    .select({ creditedInvoiceId: invoices.creditedInvoiceId, amount: invoices.amount })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.userId, session.user.id),
+        eq(invoices.type, "credit_note"),
+        eq(invoices.status, "issued"),
+        isNull(invoices.deletedAt),
+      ),
+    );
+  const creditByInvoice = new Map<string, number>();
+  for (const c of creditRows) {
+    if (!c.creditedInvoiceId) continue;
+    creditByInvoice.set(c.creditedInvoiceId, (creditByInvoice.get(c.creditedInvoiceId) ?? 0) + Number(c.amount));
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -138,7 +165,17 @@ export default async function InvoicesPage() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t">
-                    <td className="px-4 py-2 font-mono text-xs">{r.invoiceNumber}</td>
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {r.invoiceNumber}
+                      <a
+                        href={`/invoice/${r.publicToken}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand block text-xs font-normal hover:underline"
+                      >
+                        Public link ↗
+                      </a>
+                    </td>
                     <td className="px-4 py-2">
                       {r.companyName ?? r.client ?? "—"}
                       {(linesByInvoice.get(r.id) ?? []).map((l, i) => (
@@ -165,6 +202,13 @@ export default async function InvoicesPage() {
                             : ""}
                         </span>
                       ) : null}
+                      {(creditByInvoice.get(r.id) ?? 0) > 0 ? (
+                        <span className="block text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                          − {formatMoney(creditByInvoice.get(r.id) ?? 0, r.currency)} credited ·{" "}
+                          {formatMoney(Number(r.amount) - (creditByInvoice.get(r.id) ?? 0), r.currency)}{" "}
+                          outstanding
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-2">
                       <form action={updateInvoiceStatus} className="flex items-center gap-2">
@@ -189,6 +233,11 @@ export default async function InvoicesPage() {
                           Save
                         </button>
                       </form>
+                      {r.viewedAt ? (
+                        <span className="text-muted-foreground mt-1 block text-xs">
+                          Viewed {new Date(r.viewedAt).toISOString().slice(0, 10)}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-3">

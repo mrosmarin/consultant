@@ -151,8 +151,23 @@ export const timeEntries = pgTable("time_entries", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue"] as const;
+export const INVOICE_STATUSES = ["draft", "sent", "viewed", "paid", "overdue"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+// The invoices table is a shared document model (DEV-120): a row is an invoice
+// or a quote/estimate, distinguished by `type`. Quotes reuse the entire money +
+// line-item machinery and carry their own status lifecycle.
+export const DOCUMENT_TYPES = ["invoice", "quote", "credit_note"] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+export const QUOTE_STATUSES = ["draft", "sent", "accepted", "declined", "expired"] as const;
+export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+
+// Credit notes (DEV-121) are documents (type = "credit_note") linked to the
+// invoice they credit via `credited_invoice_id`. Their `amount` reduces that
+// invoice's effective outstanding balance.
+export const CREDIT_NOTE_STATUSES = ["issued", "void"] as const;
+export type CreditNoteStatus = (typeof CREDIT_NOTE_STATUSES)[number];
 
 // Portal invoicing. Same ownership model as time_entries (app-side scoping +
 // RLS backstop). company_id references companies.id (nullable for legacy rows);
@@ -163,6 +178,16 @@ export const invoices = pgTable("invoices", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull(),
   companyId: uuid("company_id").references(() => companies.id),
+  // "invoice" | "quote" (DEV-120). Quotes share this table + line items; their
+  // status uses QUOTE_STATUSES and they number with a separate "-Q-" sequence.
+  type: text("type").notNull().default("invoice"),
+  // For a quote: optional expiry date. For an invoice created by converting a
+  // quote: the quote it came from. Both null otherwise.
+  validUntil: date("valid_until"),
+  sourceQuoteId: uuid("source_quote_id"),
+  // For a credit_note (DEV-121): the invoice it credits. Its amount reduces that
+  // invoice's effective outstanding balance.
+  creditedInvoiceId: uuid("credited_invoice_id"),
   invoiceNumber: text("invoice_number").notNull(),
   client: text("client"),
   issueDate: date("issue_date").notNull(),
@@ -187,6 +212,11 @@ export const invoices = pgTable("invoices", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: text("status").notNull().default("draft"),
   notes: text("notes"),
+  // Read receipts (DEV-122): a per-document random token powers a no-login public
+  // view at /invoice/<token>; viewed_at stamps the first open (and promotes a
+  // "sent" invoice to "viewed").
+  publicToken: uuid("public_token").notNull().defaultRandom().unique(),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
@@ -226,6 +256,48 @@ export const companyMilestones = pgTable("company_milestones", {
   dueDate: date("due_date"),
   sortOrder: integer("sort_order").notNull().default(0),
   invoicedInvoiceId: uuid("invoiced_invoice_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+export const EXPENSE_CATEGORIES = [
+  "Travel",
+  "Meals",
+  "Lodging",
+  "Software",
+  "Hardware",
+  "Subcontractor",
+  "Mileage",
+  "Other",
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+// Default per-mile reimbursement rate (US IRS standard, 2026), used as the form
+// default; the per-entry rate is editable (DEV-124).
+export const DEFAULT_MILEAGE_RATE = 0.7;
+
+// Reimbursable/non-reimbursable expenses logged against a client (and optional
+// project) — DEV-123. Billable unbilled expenses are pulled into an invoice as
+// line items and stamped billed (billed_at + billed_invoice_id), mirroring time
+// entries. receipt_key points at a stored receipt file (DEV-104 storage; the
+// upload UI lands with that ticket). Owner-scoped + RLS + soft-delete.
+export const expenses = pgTable("expenses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  projectId: uuid("project_id"),
+  expenseDate: date("expense_date").notNull(),
+  category: text("category").notNull().default("Other"),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  // Mileage (DEV-124): for category "Mileage", amount = distance × unit_rate.
+  // Null for ordinary expenses.
+  distance: numeric("distance", { precision: 10, scale: 2 }),
+  unitRate: numeric("unit_rate", { precision: 8, scale: 3 }),
+  billable: boolean("billable").notNull().default(true),
+  notes: text("notes"),
+  receiptKey: text("receipt_key"),
+  billedAt: timestamp("billed_at", { withTimezone: true }),
+  billedInvoiceId: uuid("billed_invoice_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });

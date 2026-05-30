@@ -134,6 +134,41 @@
       "when": 1780171793224,
       "tag": "0018_simple_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1780175131337,
+      "tag": "0019_colossal_living_mummy",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1780175793806,
+      "tag": "0020_silky_doctor_faustus",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1780176484622,
+      "tag": "0021_mean_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1780177003601,
+      "tag": "0022_quiet_spyke",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1780178356915,
+      "tag": "0023_giant_risque",
+      "breakpoints": true
     }
   ]
 }

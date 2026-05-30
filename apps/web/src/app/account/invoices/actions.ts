@@ -7,6 +7,7 @@ import { db } from "@/db";
 import {
   companies,
   companyMilestones,
+  expenses,
   invoices,
   invoiceLineItems,
   timeEntries,
@@ -14,72 +15,10 @@ import {
   type InvoiceStatus,
 } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import {
-  buildInvoiceDraft,
-  computeInvoiceTotals,
-  insertInvoiceLineItems,
-  type DiscountInput,
-  type DraftLineItem,
-} from "@/lib/invoicing";
+import { buildInvoiceDraft, computeInvoiceTotals, insertInvoiceLineItems, type DraftLineItem } from "@/lib/invoicing";
+import { parseLineItems, parseDiscount } from "@/lib/invoice-input";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
-
-type ParsedLine = {
-  description: string;
-  quantity: number;
-  unitAmount: number;
-  sourceType: string | null;
-  sourceId: string | null;
-};
-
-// Parse + validate the line-items JSON submitted by the form. Each line may
-// carry sourceType/sourceId (a time entry it came from) — used for partial
-// billing: only the entries whose lines survive get stamped billed.
-function parseLineItems(raw: string): { lines: ParsedLine[] } | { error: string } {
-  let arr: unknown;
-  try {
-    arr = JSON.parse(raw || "[]");
-  } catch {
-    return { error: "Couldn't read the line items." };
-  }
-  if (!Array.isArray(arr) || arr.length === 0) {
-    return { error: "Add at least one line item." };
-  }
-  const lines: ParsedLine[] = [];
-  for (const item of arr) {
-    const row = item as Record<string, unknown>;
-    const description = String(row?.description ?? "").trim();
-    const quantity = Number(row?.quantity);
-    const unitAmount = Number(row?.unitAmount);
-    if (!description) return { error: "Every line item needs a description." };
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      return { error: "Line quantities must be positive numbers." };
-    }
-    if (!Number.isFinite(unitAmount) || unitAmount < 0) {
-      return { error: "Line rates must be non-negative numbers." };
-    }
-    const sourceType = row?.sourceType ? String(row.sourceType) : null;
-    const sourceId = row?.sourceId ? String(row.sourceId) : null;
-    lines.push({ description, quantity, unitAmount, sourceType, sourceId });
-  }
-  return { lines };
-}
-
-// Parse the optional invoice-level discount from the form.
-function parseDiscount(
-  typeRaw: string,
-  valueRaw: string,
-): { discount: DiscountInput } | { error: string } {
-  if ((typeRaw !== "percent" && typeRaw !== "fixed") || !valueRaw) return { discount: null };
-  const value = Number(valueRaw);
-  if (!Number.isFinite(value) || value < 0) {
-    return { error: "Discount must be a non-negative number." };
-  }
-  if (typeRaw === "percent" && value > 100) {
-    return { error: "A percentage discount can't exceed 100%." };
-  }
-  return { discount: value > 0 ? { type: typeRaw, value } : null };
-}
 
 export async function createInvoice(
   _prev: InvoiceState,
@@ -198,8 +137,22 @@ export async function createInvoice(
       .where(inArray(companyMilestones.id, milestoneIds));
   }
 
+  // Same for billable expenses (DEV-123): stamp only the ones whose lines were
+  // submitted and are legitimately in the draft.
+  const draftExpenseIds = new Set(draft.billedExpenseIds);
+  const expenseIds = lines
+    .filter((l) => l.sourceType === "expense" && l.sourceId && draftExpenseIds.has(l.sourceId))
+    .map((l) => l.sourceId as string);
+  if (expenseIds.length > 0) {
+    await db
+      .update(expenses)
+      .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
+      .where(inArray(expenses.id, expenseIds));
+  }
+
   revalidatePath("/account/invoices");
   revalidatePath("/account/companies");
+  revalidatePath("/account/expenses");
   revalidatePath("/account");
   return { ok: true };
 }
