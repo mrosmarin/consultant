@@ -1,15 +1,15 @@
 # Active Context
 
-_Last updated: 2026-05-29_
+_Last updated: 2026-05-30_
 
-> **CHECKPOINT 2026-05-29 (pre devcontainer rebuild).** Everything below is merged to `develop` + pushed, and **`develop` is now fully released to `main` (PR #34) — `develop` and `main` are identical (`cf7f8ba`), zero divergence.** Prod + isolated staging/QA are live. Local git cleaned up: all merged feature branches deleted, stale remote refs pruned. **Resume at: M3 remaining — insights/blog (DEV-59/66) or copy polish (DEV-63/64).** See "Next steps". After rebuild, re-add `.devcontainer/.env` (keys listed in the resume card).
+> **RELEASE 2026-05-30.** Company/client portal + invoicing core shipped to **production** via **PR #42** (`main` `c730187`); `develop` and `main` reconciled (identical trees). DEV-101/102/103/106/107/108 all **Done**. The full invoicing-platform roadmap (**M7–M13**, DEV-109–138) is in Linear and mirrored at **`docs/roadmap.md`**. **Resume at: M7 (client/project depth) → M8 (invoice line-items keystone)**, or M3 content (insights/blog DEV-59/66, copy DEV-63/64).
 
 ## Current focus
 
-**Prod fully live; isolated staging/QA env live; deepening the portal (companies/billing) + finishing M3.**
-- **Production:** https://endlessworlds.xyz (custom domain, SSL, www→apex) — public site + secure portal (auth + allowlist, dashboard, timesheets, invoicing), SEO, GA4 (`G-G830M5YF0W`, consent-gated).
-- **Staging/QA:** https://staging.endlessworlds.xyz — dedicated Neon project, fully isolated (data **and** auth), resettable via `make db-reset-staging` (wipes login + data). `noindex`.
-- **In flight (portal):** DEV-101 company/client entity + onboarding (timesheets/invoices now hang off a company; both billing models), DEV-102 auth UX (password reveal/policy/confirm). Then accrual (DEV-103), company docs (DEV-104), Drive/PDF (DEV-105).
+**Prod fully live (public site + portal + invoicing core); next is the M7–M13 invoicing-platform build-out.**
+- **Production:** https://endlessworlds.xyz — public site + secure portal (auth + allowlist, dashboard, **companies/clients**, **timesheets**, **invoicing** with generate + company-first auto-fill), SEO, GA4 (`G-G830M5YF0W`, consent-gated). Prod Neon at migration `0005`.
+- **Staging/QA:** https://staging.endlessworlds.xyz — dedicated Neon project, fully isolated (data **and** auth), resettable via `make db-reset-staging`. `noindex`.
+- **Roadmap:** `docs/roadmap.md` + Linear M7–M13 — client/project depth → invoice engine v2 (line items, tax, currency, discounts, fixed-fee/milestone) → quotes/docs/delivery → payments → automation → reporting → admin/compliance. Keystone: **DEV-115 invoice line-items**.
 - **Remaining M3:** copy polish (DEV-63/64), insights/blog (DEV-59/66).
 
 ## Environments
@@ -18,10 +18,11 @@ _Last updated: 2026-05-29_
 - **Staging/QA** — `develop` → `staging.endlessworlds.xyz`. **Dedicated Neon project `EndlessWorlds.Staging` = `winter-dew-93819743`** (own DB **and** own Neon Auth) → logins + data fully isolated from prod. Wired via `develop`-branch-scoped Vercel env (`DATABASE_URL`/`_UNPOOLED`/`NEON_AUTH_BASE_URL`/`NEON_AUTH_COOKIE_SECRET`). `noindex`; Vercel SSO/deploy-protection OFF (so all previews are public). Reset: `make db-reset-staging`.
 - **PR previews** (non-`develop`) — prod project's `preview` Neon branch (shares prod auth). Only `develop`/staging gets the isolated project.
 - **DNS:** registrar **Hover**, Hover nameservers. Vercel hosts the records.
-- **`develop` and `main` are in sync** (`cf7f8ba`) — DEV-99 (noindex), DEV-81 (staging tooling), DEV-100 (checkpoint skill) shipped to prod via PR #34 (2026-05-29), then `main` back-merged into `develop`. Next release: branch a `feature/dev-XXX-*` off `develop` → PR to `develop` → when ready, PR `develop`→`main`.
+- **`develop` and `main` are in sync** (`c730187`) — the company/client portal + invoicing (DEV-101/102/103/106/107/108) shipped to prod via **PR #42 (2026-05-30)**; `main` back-merged into `develop`. Next release: branch a `feature/dev-XXX-*` off `develop` → PR to `develop` → when ready, PR `develop`→`main` (apply pending migrations to prod first).
 
 ## Recent changes (newest first; deduped at the 2026-05-29 checkpoint)
 
+- **Prod release + roadmap (2026-05-30):** Shipped the company/client portal + invoicing core to production (**PR #42**, `c730187`); prod Neon already at migration `0005` (verified). Created the full invoicing-platform roadmap in Linear — **milestones M7–M13** with **DEV-109–138** + reused DEV-69/74/76/77/104/105 — mirrored at **`docs/roadmap.md`**. Keystone is **DEV-115 (invoice line-items refactor)**. DEV-101/102/103/106/107/108 closed **Done**. Merged worktrees cleaned up.
 - **DEV-108 (invoice form: company-first + auto-fill):** The "New invoice" form now leads with the **Company** picker; selecting one **auto-fills** number/amount/dates/notes (from the latest completed period), all editable. **Saving marks the underlying unbilled hours billed** for hourly companies (so they can't be double-billed) — the form is now an editable "Generate". Extracted a shared **`src/lib/invoicing.ts` `buildInvoiceDraft(company, userId)`** used by the Generate button, the form prefill, and `createInvoice` so they can't drift. No new migration (uses 0005). Gates green; **faithful round-trip PASSED on dev** (page embeds ACME-0001/$750 prefill; form create → invoice + both entries billed). (PR pending.)
 - **DEV-107 (timesheet UX):** Company picker on the timesheet form is now a controlled field, so it **stays selected after "Log time"** (React 19 resets uncontrolled form fields after a server action). Date/hours/notes still clear for the next entry. Gates green. (PR pending.)
 - **DEV-103 (invoice prefix + generate-invoice engine):** Migration `0005` — `companies.invoice_prefix`, `time_entries.billed_at`/`billed_invoice_id`. Company onboarding/edit now has an **invoice prefix** (auto-suggested from name, editable). **"Generate invoice"** button (companies list row + edit page) → `generateInvoice` action creates a **draft** invoice for the latest completed billing period (`src/lib/billing.ts` `latestCompletedPeriod`, unit-checked): hourly = sum of unbilled entries up to period end × rate (entries stamped `billed_at`/`billed_invoice_id` so they can't be re-billed); retainer = flat amount. Numbers = `{PREFIX}-{seq}` (count incl. soft-deleted +1). Invoices list shows the period/source note. Gates green; **faithful generate round-trip PASSED on dev** (ACME-0001 = $750 for 5h@$150, both entries billed, 2nd generate adds nothing). `0005` applied to **dev + staging** (Neon API path). Future auto-generation → Neon **pg_cron** calling the same generator. (PR pending.)
