@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { companies, invoices, timeEntries, INVOICE_STATUSES, type InvoiceStatus } from "@/db/schema";
+import {
+  companies,
+  companyMilestones,
+  invoices,
+  timeEntries,
+  INVOICE_STATUSES,
+  type InvoiceStatus,
+} from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import {
   buildInvoiceDraft,
@@ -175,6 +182,19 @@ export async function createInvoice(
       .update(timeEntries)
       .set({ billedAt: new Date(), billedInvoiceId: invoice.id })
       .where(inArray(timeEntries.id, billedIds));
+  }
+
+  // Same for milestones (DEV-119): mark invoiced only the pending milestones
+  // whose lines were submitted (and are legitimately in the draft).
+  const draftMilestoneIds = new Set(draft.billedMilestoneIds);
+  const milestoneIds = lines
+    .filter((l) => l.sourceType === "milestone" && l.sourceId && draftMilestoneIds.has(l.sourceId))
+    .map((l) => l.sourceId as string);
+  if (milestoneIds.length > 0) {
+    await db
+      .update(companyMilestones)
+      .set({ status: "invoiced", invoicedInvoiceId: invoice.id })
+      .where(inArray(companyMilestones.id, milestoneIds));
   }
 
   revalidatePath("/account/invoices");

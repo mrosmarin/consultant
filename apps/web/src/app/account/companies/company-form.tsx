@@ -17,6 +17,8 @@ import { saveCompany } from "./actions";
 const BILLING_TYPE_OPTIONS = [
   { value: "hourly", label: "Hourly rate" },
   { value: "retainer", label: "Flat retainer" },
+  { value: "fixed", label: "Fixed project fee" },
+  { value: "milestone", label: "Milestone billing" },
 ] as const;
 
 const BILLING_FREQUENCY_OPTIONS = [
@@ -39,6 +41,7 @@ export type CompanyFormValues = {
   billingType: string;
   hourlyRate: string | null;
   retainerAmount: string | null;
+  fixedAmount: string | null;
   billingFrequency: string;
   billingAnchorDay: number | null;
   paymentTermsDays: number | null;
@@ -181,7 +184,7 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
 
       {billingType === "hourly" ? (
         <div className="grid gap-2">
-          <Label htmlFor="hourlyRate">Hourly rate (USD)</Label>
+          <Label htmlFor="hourlyRate">Hourly rate</Label>
           <Input
             id="hourlyRate"
             name="hourlyRate"
@@ -191,9 +194,9 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
             defaultValue={company?.hourlyRate ?? ""}
           />
         </div>
-      ) : (
+      ) : billingType === "retainer" ? (
         <div className="grid gap-2">
-          <Label htmlFor="retainerAmount">Retainer amount (USD / period)</Label>
+          <Label htmlFor="retainerAmount">Retainer amount (per period)</Label>
           <Input
             id="retainerAmount"
             name="retainerAmount"
@@ -202,6 +205,25 @@ export function CompanyForm({ company }: { company?: CompanyFormValues }) {
             min="0"
             defaultValue={company?.retainerAmount ?? ""}
           />
+        </div>
+      ) : billingType === "fixed" ? (
+        <div className="grid gap-2">
+          <Label htmlFor="fixedAmount">Fixed project fee</Label>
+          <Input
+            id="fixedAmount"
+            name="fixedAmount"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={company?.fixedAmount ?? ""}
+          />
+        </div>
+      ) : (
+        <div className="grid gap-2 sm:col-span-2">
+          <p className="text-muted-foreground text-sm">
+            Milestone billing — add the milestone schedule (name + amount) below after saving.
+            Generating an invoice bills the pending milestones.
+          </p>
         </div>
       )}
 

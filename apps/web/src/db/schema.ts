@@ -22,8 +22,11 @@ export const allowedEmails = pgTable("allowed_emails", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const BILLING_TYPES = ["hourly", "retainer"] as const;
+export const BILLING_TYPES = ["hourly", "retainer", "fixed", "milestone"] as const;
 export type BillingType = (typeof BILLING_TYPES)[number];
+
+export const MILESTONE_STATUSES = ["pending", "invoiced"] as const;
+export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
 
 export const BILLING_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly"] as const;
 export type BillingFrequency = (typeof BILLING_FREQUENCIES)[number];
@@ -49,6 +52,8 @@ export const companies = pgTable("companies", {
   billingType: text("billing_type").notNull().default("hourly"),
   hourlyRate: numeric("hourly_rate", { precision: 12, scale: 2 }),
   retainerAmount: numeric("retainer_amount", { precision: 12, scale: 2 }),
+  // Flat project fee for billing_type = "fixed" (DEV-119).
+  fixedAmount: numeric("fixed_amount", { precision: 12, scale: 2 }),
   billingFrequency: text("billing_frequency").notNull().default("monthly"),
   billingAnchorDay: integer("billing_anchor_day"),
   // Net payment terms in days (0 = due on receipt). Drives the invoice due-date
@@ -201,6 +206,26 @@ export const invoiceLineItems = pgTable("invoice_line_items", {
   sortOrder: integer("sort_order").notNull().default(0),
   sourceType: text("source_type"),
   sourceId: uuid("source_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});
+
+// Billing milestones for a company on billing_type = "milestone" (DEV-119):
+// a schedule of named, fixed-amount chunks. Generating an invoice bills the
+// PENDING milestones (each becomes a line item) and stamps them "invoiced" with
+// the invoice id — mirrors how time entries are stamped billed. Company-level
+// (the billing model + Generate flow are company-centric); plain uuid company_id,
+// owner-scoped + RLS + soft-delete.
+export const companyMilestones = pgTable("company_milestones", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  companyId: uuid("company_id").notNull(),
+  name: text("name").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  dueDate: date("due_date"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  invoicedInvoiceId: uuid("invoiced_invoice_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
