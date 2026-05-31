@@ -261,3 +261,112 @@ export function buildUtilizationReport(rows: UtilizationInput[]): UtilizationRep
     .sort((a, b) => a.month.localeCompare(b.month));
   return { billable: r1(billable), nonBillable: r1(nonBillable), total: r1(total), pct: pctOf(billable, total), byMonth };
 }
+
+// Timesheet reporting (DEV-74): aggregate logged time into a client-ready report.
+// Pure (no DB) so the rollups are unit-testable; the route assembles the rows
+// (already filtered by date range / company / project) and shares the result
+// across the on-screen report, the CSV export, and the branded PDF. Amount =
+// Σ(billable hours × snapshotted rate), kept per-currency (no FX — consistent
+// with the multi-currency v1 decision). Non-billable time is tracked but earns 0.
+export type TimesheetInput = {
+  workDate: string; // ISO yyyy-mm-dd
+  companyName: string | null;
+  projectName: string | null;
+  task: string | null;
+  hours: number;
+  rate: number | null;
+  billable: boolean;
+  currency: string;
+};
+
+export type TimesheetProjectRow = {
+  companyName: string;
+  projectName: string;
+  currency: string;
+  hours: number;
+  billableHours: number;
+  amount: number;
+};
+
+export type TimesheetMonthRow = {
+  month: string;
+  hours: number;
+  billableHours: number;
+};
+
+export type TimesheetReport = {
+  hours: number;
+  billableHours: number;
+  nonBillableHours: number;
+  pct: number; // billable / total * 100
+  entryCount: number;
+  amountByCurrency: { currency: string; amount: number }[];
+  byProject: TimesheetProjectRow[];
+  byMonth: TimesheetMonthRow[];
+};
+
+export function buildTimesheetReport(rows: TimesheetInput[]): TimesheetReport {
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const pctOf = (b: number, t: number) => (t > 0 ? Math.round((b / t) * 1000) / 10 : 0);
+
+  type ProjAcc = { hours: number; billableHours: number; amount: number };
+  const proj = new Map<string, { companyName: string; projectName: string; currency: string } & ProjAcc>();
+  const month = new Map<string, { hours: number; billableHours: number }>();
+  const cur = new Map<string, number>();
+
+  let hours = 0;
+  let billableHours = 0;
+  let entryCount = 0;
+
+  for (const r of rows) {
+    const h = Number(r.hours) || 0;
+    if (h <= 0) continue;
+    entryCount += 1;
+    const amt = r.billable && r.rate != null ? h * Number(r.rate) : 0;
+    hours += h;
+    if (r.billable) billableHours += h;
+
+    const companyName = r.companyName ?? "—";
+    const projectName = r.projectName ?? "—";
+    const pKey = `${companyName} ${projectName} ${r.currency}`;
+    const p = proj.get(pKey) ?? { companyName, projectName, currency: r.currency, hours: 0, billableHours: 0, amount: 0 };
+    p.hours += h;
+    if (r.billable) p.billableHours += h;
+    p.amount += amt;
+    proj.set(pKey, p);
+
+    const mKey = r.workDate.slice(0, 7);
+    const m = month.get(mKey) ?? { hours: 0, billableHours: 0 };
+    m.hours += h;
+    if (r.billable) m.billableHours += h;
+    month.set(mKey, m);
+
+    if (amt > 0) cur.set(r.currency, (cur.get(r.currency) ?? 0) + amt);
+  }
+
+  const nonBillableHours = hours - billableHours;
+  return {
+    hours: r1(hours),
+    billableHours: r1(billableHours),
+    nonBillableHours: r1(nonBillableHours),
+    pct: pctOf(billableHours, hours),
+    entryCount,
+    amountByCurrency: [...cur.entries()]
+      .map(([currency, amount]) => ({ currency, amount: r2(amount) }))
+      .sort((a, b) => b.amount - a.amount),
+    byProject: [...proj.values()]
+      .map((p) => ({
+        companyName: p.companyName,
+        projectName: p.projectName,
+        currency: p.currency,
+        hours: r1(p.hours),
+        billableHours: r1(p.billableHours),
+        amount: r2(p.amount),
+      }))
+      .sort((a, b) => b.hours - a.hours),
+    byMonth: [...month.entries()]
+      .map(([mo, v]) => ({ month: mo, hours: r1(v.hours), billableHours: r1(v.billableHours) }))
+      .sort((a, b) => a.month.localeCompare(b.month)),
+  };
+}
