@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { Suspense, useActionState } from "react";
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/password-input";
 
 import { signInWithEmail } from "./actions";
+import { SignInNotice } from "./sign-in-notice";
 
 export default function SignInPage() {
   const [state, formAction, pending] = useActionState(signInWithEmail, null);
@@ -34,6 +35,9 @@ export default function SignInPage() {
         </CardHeader>
         <form action={formAction}>
           <CardContent className="grid gap-4">
+            <Suspense fallback={null}>
+              <SignInNotice />
+            </Suspense>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" autoComplete="email" required />
