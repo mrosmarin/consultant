@@ -41,6 +41,18 @@ export function homePathForRole(role: Role): string {
   return role === "client" ? "/client" : "/account";
 }
 
+// Resolve a role straight from the allowlist by email — used by the auth actions
+// to pick the post-sign-in landing page before the session cookie is readable.
+// Returns null when the email isn't on the (live) allowlist.
+export async function roleForEmail(email: string): Promise<Role | null> {
+  const [row] = await db
+    .select({ role: allowedEmails.role })
+    .from(allowedEmails)
+    .where(and(eq(allowedEmails.email, normalizeEmail(email)), isNull(allowedEmails.deletedAt)))
+    .limit(1);
+  return row ? (row.role as Role) : null;
+}
+
 // Page/layout guard: require an authenticated user whose role is in `roles`.
 //   - no session / revoked → /auth/sign-in?reason=auth (sign-in shows a notice)
 //   - authenticated but wrong role → /forbidden (403 page)
