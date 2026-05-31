@@ -1,6 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 
 import { auth } from "@/lib/auth/server";
+import { getAccess } from "@/lib/auth/rbac";
 import { TimesheetPdf } from "@/lib/pdf/timesheet-pdf";
 import { buildTimesheetReport } from "@/lib/reports";
 import {
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  const access = await getAccess();
+  if (access?.role !== "admin") return new Response("Forbidden", { status: 403 }); // DEV-141
 
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const filters = parseTimesheetFilters(sp);

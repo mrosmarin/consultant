@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth/server";
+import { getAccess } from "@/lib/auth/rbac";
 import {
   fetchTimesheetRows,
   parseTimesheetFilters,
@@ -17,6 +18,8 @@ const csvCell = (v: string | number | boolean | null) => {
 export async function GET(req: Request) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  const access = await getAccess();
+  if (access?.role !== "admin") return new Response("Forbidden", { status: 403 }); // DEV-141
 
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const filters = parseTimesheetFilters(sp);

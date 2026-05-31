@@ -5,7 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import { companies, projects, timeEntries } from "@/db/schema";
-import { auth } from "@/lib/auth/server";
+import { getAccess, getTenantOwnerId } from "@/lib/auth/rbac";
 
 export type TimeEntryState = { ok: boolean; error?: string } | null;
 
@@ -23,8 +23,13 @@ export async function addTimeEntry(
   _prev: TimeEntryState,
   formData: FormData,
 ): Promise<TimeEntryState> {
-  const { data: session } = await auth.getSession();
-  if (!session?.user) return { ok: false, error: "You're not signed in." };
+  // Admins and team members may log time. The entry is OWNED by the tenant
+  // (user_id = the consultant) so it rolls into the tenant's timesheet +
+  // invoicing; logged_by records who physically entered it (DEV-141).
+  const access = await getAccess();
+  if (!access) return { ok: false, error: "You're not signed in." };
+  if (access.role === "client") return { ok: false, error: "Not permitted." };
+  const ownerId = await getTenantOwnerId(access);
 
   const workDate = (formData.get("workDate") as string)?.trim();
   const companyId = ((formData.get("companyId") as string) ?? "").trim();
@@ -41,7 +46,7 @@ export async function addTimeEntry(
     return { ok: false, error: "Date and company are required." };
   }
 
-  // Verify the company is one the signed-in user owns (not soft-deleted).
+  // Verify the company belongs to the tenant (not soft-deleted).
   const [company] = await db
     .select({
       id: companies.id,
@@ -50,16 +55,12 @@ export async function addTimeEntry(
     })
     .from(companies)
     .where(
-      and(
-        eq(companies.id, companyId),
-        eq(companies.userId, session.user.id),
-        isNull(companies.deletedAt),
-      ),
+      and(eq(companies.id, companyId), eq(companies.userId, ownerId), isNull(companies.deletedAt)),
     )
     .limit(1);
   if (!company) return { ok: false, error: "Pick one of your companies." };
 
-  // Optional project must be the user's and belong to the chosen company.
+  // Optional project must be the tenant's and belong to the chosen company.
   // Its rate (if set) overrides the company rate.
   let projectRate: string | null = null;
   if (projectId) {
@@ -69,7 +70,7 @@ export async function addTimeEntry(
       .where(
         and(
           eq(projects.id, projectId),
-          eq(projects.userId, session.user.id),
+          eq(projects.userId, ownerId),
           eq(projects.companyId, companyId),
           isNull(projects.deletedAt),
         ),
@@ -115,7 +116,8 @@ export async function addTimeEntry(
   }
 
   await db.insert(timeEntries).values({
-    userId: session.user.id,
+    userId: ownerId,
+    loggedBy: access.user.id,
     companyId,
     projectId,
     task,
@@ -133,15 +135,22 @@ export async function addTimeEntry(
 }
 
 export async function deleteTimeEntry(formData: FormData): Promise<void> {
-  const { data: session } = await auth.getSession();
-  if (!session?.user) return;
+  const access = await getAccess();
+  if (!access || access.role === "client") return;
   const id = formData.get("id") as string;
   if (!id) return;
+
+  // Admins can delete any of the tenant's entries; team members only the ones
+  // they logged themselves.
+  const scope =
+    access.role === "team_member"
+      ? eq(timeEntries.loggedBy, access.user.id)
+      : eq(timeEntries.userId, access.user.id);
 
   await db
     .update(timeEntries)
     .set({ deletedAt: new Date() })
-    .where(and(eq(timeEntries.id, id), eq(timeEntries.userId, session.user.id)));
+    .where(and(eq(timeEntries.id, id), scope));
   revalidatePath("/account/timesheets");
   revalidatePath("/account");
 }

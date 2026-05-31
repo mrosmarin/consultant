@@ -158,6 +158,12 @@ export const timeEntries = pgTable("time_entries", {
   // utilization reporting (DEV-134).
   billable: boolean("billable").notNull().default(true),
   notes: text("notes"),
+  // Who physically logged this entry (DEV-141). For the consultant's own time
+  // this equals user_id; for a team member it's the team member's id while
+  // user_id stays the tenant (consultant) so the time rolls into the tenant's
+  // timesheet + invoicing with no change to those owner-scoped queries.
+  // Nullable; null means "logged by the owner".
+  loggedBy: text("logged_by"),
   // Set when an entry is rolled into a generated invoice, so it isn't billed
   // twice. billed_invoice_id points at that invoice (no hard FK ordering needs).
   billedAt: timestamp("billed_at", { withTimezone: true }),

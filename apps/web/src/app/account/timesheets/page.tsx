@@ -4,7 +4,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies, projects, timeEntries } from "@/db/schema";
-import { auth } from "@/lib/auth/server";
+import { getAccess, getTenantOwnerId } from "@/lib/auth/rbac";
 import { listCompanyOptions } from "@/lib/companies";
 import { listProjectOptions } from "@/lib/projects";
 
@@ -17,12 +17,20 @@ export const dynamic = "force-dynamic";
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
 
 export default async function TimesheetsPage() {
-  const { data: session } = await auth.getSession();
-  if (!session?.user) redirect("/auth/sign-in");
+  // Timesheets is the one /account section a team member can use (DEV-141).
+  const access = await getAccess();
+  if (!access) redirect("/auth/sign-in?reason=auth");
+  if (access.role === "client") redirect("/forbidden");
 
+  const ownerId = await getTenantOwnerId(access);
+  const isTeam = access.role === "team_member";
+
+  // Options come from the tenant's companies/projects. The entries list shows
+  // the whole tenant's time to the admin (own + team), but only their own
+  // entries to a team member.
   const [companyOptions, projectOptions, rows] = await Promise.all([
-    listCompanyOptions(session.user.id),
-    listProjectOptions(session.user.id),
+    listCompanyOptions(ownerId),
+    listProjectOptions(ownerId),
     db
       .select({
         id: timeEntries.id,
@@ -37,11 +45,17 @@ export default async function TimesheetsPage() {
         companyName: companies.name,
         projectName: projects.name,
         task: timeEntries.task,
+        loggedBy: timeEntries.loggedBy,
       })
       .from(timeEntries)
       .leftJoin(companies, eq(timeEntries.companyId, companies.id))
       .leftJoin(projects, eq(timeEntries.projectId, projects.id))
-      .where(and(eq(timeEntries.userId, session.user.id), isNull(timeEntries.deletedAt)))
+      .where(
+        and(
+          isNull(timeEntries.deletedAt),
+          isTeam ? eq(timeEntries.loggedBy, access.user.id) : eq(timeEntries.userId, ownerId),
+        ),
+      )
       .orderBy(desc(timeEntries.workDate), desc(timeEntries.createdAt)),
   ]);
 
@@ -49,7 +63,11 @@ export default async function TimesheetsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Timesheets</h1>
-        <p className="text-muted-foreground text-sm">Log time against the companies you bill.</p>
+        <p className="text-muted-foreground text-sm">
+          {isTeam
+            ? "Log your time against the company's projects."
+            : "Log time against the companies you bill."}
+        </p>
       </div>
 
       <Card>
@@ -76,6 +94,7 @@ export default async function TimesheetsPage() {
                   <th className="px-4 py-2 font-medium">Time</th>
                   <th className="px-4 py-2 font-medium">Hours</th>
                   <th className="px-4 py-2 font-medium">Rate</th>
+                  {!isTeam ? <th className="px-4 py-2 font-medium">Logged by</th> : null}
                   <th className="px-4 py-2 font-medium">Notes</th>
                   <th className="px-4 py-2" />
                 </tr>
@@ -105,6 +124,17 @@ export default async function TimesheetsPage() {
                     <td className="px-4 py-2 font-mono text-xs">
                       {r.billable && r.rate ? `$${Number(r.rate).toFixed(2)}` : "—"}
                     </td>
+                    {!isTeam ? (
+                      <td className="px-4 py-2 text-xs">
+                        {r.loggedBy && r.loggedBy !== ownerId ? (
+                          <span className="bg-brand/15 text-brand rounded-full px-2 py-0.5 font-medium">
+                            team
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">you</span>
+                        )}
+                      </td>
+                    ) : null}
                     <td className="text-muted-foreground px-4 py-2">{r.notes}</td>
                     <td className="px-4 py-2 text-right">
                       <form action={deleteTimeEntry}>

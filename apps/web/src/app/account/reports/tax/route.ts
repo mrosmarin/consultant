@@ -3,6 +3,7 @@ import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, invoices } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { getAccess } from "@/lib/auth/rbac";
 
 // Per-invoice tax detail as CSV for the accountant (DEV-135). Authenticated,
 // owner-scoped. Issued invoices with tax > 0.
@@ -17,6 +18,8 @@ const csvCell = (v: string | number | null) => {
 export async function GET() {
   const { data: session } = await auth.getSession();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  const access = await getAccess();
+  if (access?.role !== "admin") return new Response("Forbidden", { status: 403 }); // DEV-141
 
   const rows = await db
     .select({

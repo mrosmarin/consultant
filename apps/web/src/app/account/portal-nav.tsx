@@ -27,7 +27,11 @@ export function PortalNav({ role }: { role: Role }) {
   const pathname = usePathname();
   return (
     <nav className="flex gap-1 p-2 md:flex-col md:p-4">
-      {ITEMS.filter((item) => !item.roles || item.roles.includes(role)).map((item) => {
+      {ITEMS.filter((item) =>
+        role === "team_member"
+          ? item.href === "/account/timesheets"
+          : !item.roles || item.roles.includes(role),
+      ).map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         return (
           <Link

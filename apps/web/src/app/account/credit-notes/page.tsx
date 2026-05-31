@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies, invoices, CREDIT_NOTE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { requireAdmin } from "@/lib/auth/rbac";
 import { formatMoney } from "@/lib/money";
 
 import { deleteCreditNote, updateCreditNoteStatus } from "./actions";
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function CreditNotesPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
+  await requireAdmin(); // admin-only section -- team members get /forbidden (DEV-141)
 
   const docs = await db
     .select({

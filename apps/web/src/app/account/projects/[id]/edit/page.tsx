@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { requireAdmin } from "@/lib/auth/rbac";
 import { listCompanyOptions } from "@/lib/companies";
 
 import { ProjectForm } from "../../project-form";
@@ -16,6 +17,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
+  await requireAdmin(); // admin-only section -- team members get /forbidden (DEV-141)
 
   const [companyOptions, [project]] = await Promise.all([
     listCompanyOptions(session.user.id),
