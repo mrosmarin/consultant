@@ -360,7 +360,10 @@ export default async function ReportsPage() {
         <h2 className="text-xl font-semibold tracking-tight">Time utilization</h2>
         <p className="text-muted-foreground text-sm">
           Billable vs non-billable hours from timesheets. (Profit margin needs cost
-          rates — not tracked yet.)
+          rates — not tracked yet.){" "}
+          <a href="/account/reports/timesheets" className="text-brand underline">
+            Open the timesheet report → (by project, with CSV/PDF export)
+          </a>
         </p>
       </div>
 
