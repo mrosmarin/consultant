@@ -6,7 +6,14 @@ import { db } from "@/db";
 import { companies, invoices, payments } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { formatMoney } from "@/lib/money";
-import { buildAgingReport, AGING_BUCKETS, AGING_LABELS, type AgingInput } from "@/lib/reports";
+import {
+  buildAgingReport,
+  buildRevenueReport,
+  AGING_BUCKETS,
+  AGING_LABELS,
+  type AgingInput,
+  type RevenueInput,
+} from "@/lib/reports";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +75,35 @@ export default async function ReportsPage() {
     dueDate: i.dueDate,
   }));
   const groups = buildAgingReport(rows, today);
+
+  // Invoiced revenue (DEV-133): all issued invoices (exclude draft), by client + month.
+  const revRows = await db
+    .select({
+      companyName: companies.name,
+      currency: invoices.currency,
+      amount: invoices.amount,
+      issueDate: invoices.issueDate,
+    })
+    .from(invoices)
+    .leftJoin(companies, eq(invoices.companyId, companies.id))
+    .where(
+      and(
+        eq(invoices.userId, uid),
+        eq(invoices.type, "invoice"),
+        ne(invoices.status, "draft"),
+        isNull(invoices.deletedAt),
+      ),
+    );
+  const revenue = buildRevenueReport(
+    revRows.map(
+      (r): RevenueInput => ({
+        companyName: r.companyName,
+        currency: r.currency,
+        amount: Number(r.amount),
+        issueDate: r.issueDate,
+      }),
+    ),
+  );
 
   return (
     <div className="space-y-8">
@@ -158,6 +194,64 @@ export default async function ReportsPage() {
             </div>
           );
         })
+      )}
+
+      <div className="border-t pt-6">
+        <h2 className="text-xl font-semibold tracking-tight">Revenue (invoiced)</h2>
+        <p className="text-muted-foreground text-sm">
+          All issued invoices, by client and month. Per currency; no FX.
+        </p>
+      </div>
+
+      {revenue.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No invoices issued yet.</p>
+      ) : (
+        revenue.map((g) => (
+          <div key={g.currency} className="grid gap-4 lg:grid-cols-2">
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/50 text-muted-foreground text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Client ({g.currency})</th>
+                    <th className="px-4 py-2 text-right font-medium">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.byClient.map((c) => (
+                    <tr key={c.name} className="border-t">
+                      <td className="px-4 py-2">{c.name}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatMoney(c.total, g.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t font-medium">
+                    <td className="px-4 py-2">Total</td>
+                    <td className="px-4 py-2 text-right font-mono">{formatMoney(g.total, g.currency)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/50 text-muted-foreground text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Month ({g.currency})</th>
+                    <th className="px-4 py-2 text-right font-medium">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.byMonth.map((m) => (
+                    <tr key={m.month} className="border-t">
+                      <td className="px-4 py-2 font-mono text-xs">{m.month}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatMoney(m.total, g.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))
       )}
     </div>
   );
