@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth/server";
 import { isEmailAllowed } from "@/lib/auth/allowlist";
+import { homePathForRole, roleForEmail } from "@/lib/auth/rbac";
 import { validatePassword } from "@/lib/auth/password";
 import type { AuthFormState } from "@/app/auth/sign-in/actions";
 
@@ -39,5 +40,6 @@ export async function signUpWithEmail(
     return { error: error.message || "Failed to create account." };
   }
 
-  redirect("/account");
+  const role = await roleForEmail(email);
+  redirect(role ? homePathForRole(role) : "/account");
 }
