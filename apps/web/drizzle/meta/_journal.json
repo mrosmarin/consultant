@@ -176,6 +176,13 @@
       "when": 1780183799107,
       "tag": "0024_pretty_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1780186133807,
+      "tag": "0025_careless_loners",
+      "breakpoints": true
     }
   ]
 }

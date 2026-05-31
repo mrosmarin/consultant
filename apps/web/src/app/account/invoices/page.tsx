@@ -11,6 +11,7 @@ import { formatMoney } from "@/lib/money";
 
 import { deleteInvoice, updateInvoiceStatus } from "./actions";
 import { AddInvoiceForm, type InvoicePrefill } from "./add-invoice-form";
+import { SendInvoiceButton } from "./send-invoice-button";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export default async function InvoicesPage() {
         status: invoices.status,
         publicToken: invoices.publicToken,
         viewedAt: invoices.viewedAt,
+        sentAt: invoices.sentAt,
       })
       .from(invoices)
       .leftJoin(companies, eq(invoices.companyId, companies.id))
@@ -257,6 +259,7 @@ export default async function InvoicesPage() {
                             Edit
                           </Link>
                         ) : null}
+                        <SendInvoiceButton invoiceId={r.id} />
                         <form action={deleteInvoice}>
                           <input type="hidden" name="id" value={r.id} />
                           <button className="text-muted-foreground hover:text-destructive text-xs">
@@ -264,6 +267,11 @@ export default async function InvoicesPage() {
                           </button>
                         </form>
                       </div>
+                      {r.sentAt ? (
+                        <span className="text-muted-foreground mt-1 block text-xs">
+                          Sent {new Date(r.sentAt).toISOString().slice(0, 10)}
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

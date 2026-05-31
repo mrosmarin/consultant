@@ -1,11 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { headers } from "next/headers";
+import { renderToBuffer } from "@react-pdf/renderer";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   companies,
+  companyContacts,
   companyMilestones,
   expenses,
   invoices,
@@ -17,8 +20,129 @@ import {
 import { auth } from "@/lib/auth/server";
 import { buildInvoiceDraft, computeInvoiceTotals, insertInvoiceLineItems, type DraftLineItem } from "@/lib/invoicing";
 import { parseLineItems, parseDiscount } from "@/lib/invoice-input";
+import { sendEmail } from "@/lib/email";
+import { formatMoney } from "@/lib/money";
+import { InvoicePdf, invoicePdfDataFrom } from "@/lib/pdf/invoice-pdf";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Email an invoice to the client with the branded PDF attached (DEV-76). The
+// recipient is an optional override, else the company's primary contact email,
+// else its legacy contact email. On success the invoice is marked sent.
+export async function sendInvoice(_prev: InvoiceState, formData: FormData): Promise<InvoiceState> {
+  const { data: session } = await auth.getSession();
+  if (!session?.user) return { ok: false, error: "You're not signed in." };
+
+  const id = ((formData.get("id") as string) ?? "").trim();
+  const toOverride = ((formData.get("to") as string) ?? "").trim();
+  if (!id) return { ok: false, error: "Missing invoice." };
+
+  const [inv] = await db
+    .select({
+      id: invoices.id,
+      companyId: invoices.companyId,
+      invoiceNumber: invoices.invoiceNumber,
+      companyName: companies.name,
+      contactEmail: companies.contactEmail,
+      paymentTermsDays: companies.paymentTermsDays,
+      issueDate: invoices.issueDate,
+      dueDate: invoices.dueDate,
+      currency: invoices.currency,
+      subtotal: invoices.subtotal,
+      discountAmount: invoices.discountAmount,
+      discountType: invoices.discountType,
+      discountValue: invoices.discountValue,
+      taxLabel: invoices.taxLabel,
+      taxRate: invoices.taxRate,
+      taxAmount: invoices.taxAmount,
+      amount: invoices.amount,
+      notes: invoices.notes,
+      status: invoices.status,
+      publicToken: invoices.publicToken,
+    })
+    .from(invoices)
+    .leftJoin(companies, eq(invoices.companyId, companies.id))
+    .where(
+      and(
+        eq(invoices.id, id),
+        eq(invoices.userId, session.user.id),
+        eq(invoices.type, "invoice"),
+        isNull(invoices.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!inv) return { ok: false, error: "Invoice not found." };
+
+  // Resolve recipient: override → primary contact → legacy company contact.
+  let to = toOverride;
+  if (!to && inv.companyId) {
+    const [primary] = await db
+      .select({ email: companyContacts.email })
+      .from(companyContacts)
+      .where(
+        and(
+          eq(companyContacts.companyId, inv.companyId),
+          eq(companyContacts.userId, session.user.id),
+          eq(companyContacts.isPrimary, true),
+          isNull(companyContacts.deletedAt),
+        ),
+      )
+      .limit(1);
+    to = primary?.email ?? inv.contactEmail ?? "";
+  }
+  if (!EMAIL_RE.test(to)) {
+    return { ok: false, error: "No valid recipient — add a primary contact email on the company, or enter one." };
+  }
+
+  const lines = await db
+    .select({
+      description: invoiceLineItems.description,
+      quantity: invoiceLineItems.quantity,
+      unitAmount: invoiceLineItems.unitAmount,
+      lineTotal: invoiceLineItems.lineTotal,
+    })
+    .from(invoiceLineItems)
+    .where(and(eq(invoiceLineItems.invoiceId, inv.id), isNull(invoiceLineItems.deletedAt)))
+    .orderBy(asc(invoiceLineItems.sortOrder));
+
+  const buffer = await renderToBuffer(InvoicePdf({ data: invoicePdfDataFrom(inv, lines) }));
+  const pdfBase64 = Buffer.from(buffer).toString("base64");
+
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? "endlessworlds.xyz"}`;
+  const link = `${origin}/invoice/${inv.publicToken}`;
+  const total = formatMoney(Number(inv.amount), inv.currency);
+
+  const html = `
+    <div style="font-family:system-ui,sans-serif;color:#1f2937">
+      <p>Hello,</p>
+      <p>Please find attached invoice <strong>${inv.invoiceNumber}</strong> from EndlessWorlds, LLC for <strong>${total}</strong>${inv.dueDate ? `, due <strong>${inv.dueDate}</strong>` : ""}.</p>
+      <p>You can also view it online: <a href="${link}">${link}</a></p>
+      <p>Thank you for your business.<br/>EndlessWorlds, LLC</p>
+    </div>`;
+
+  const result = await sendEmail({
+    to,
+    subject: `Invoice ${inv.invoiceNumber} from EndlessWorlds, LLC`,
+    html,
+    attachments: [{ filename: `${inv.invoiceNumber}.pdf`, content: pdfBase64 }],
+  });
+  if (!result.ok) return { ok: false, error: result.error ?? "Failed to send." };
+
+  await db
+    .update(invoices)
+    .set({
+      sentAt: new Date(),
+      sentTo: to,
+      status: inv.status === "draft" || inv.status === "viewed" ? "sent" : inv.status,
+    })
+    .where(and(eq(invoices.id, id), eq(invoices.userId, session.user.id)));
+
+  revalidatePath("/account/invoices");
+  return { ok: true };
+}
 
 export async function createInvoice(
   _prev: InvoiceState,

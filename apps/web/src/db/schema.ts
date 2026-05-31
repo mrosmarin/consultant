@@ -217,6 +217,9 @@ export const invoices = pgTable("invoices", {
   // "sent" invoice to "viewed").
   publicToken: uuid("public_token").notNull().defaultRandom().unique(),
   viewedAt: timestamp("viewed_at", { withTimezone: true }),
+  // Email delivery (DEV-76): when the invoice was last emailed + to whom.
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  sentTo: text("sent_to"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
