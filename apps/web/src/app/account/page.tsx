@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies, invoices, timeEntries } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { getAccess } from "@/lib/auth/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,13 @@ function weekStartISO() {
 export default async function DashboardPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
+
+  // The admin dashboard aggregates billing data — team members don't get it;
+  // send them to the one section they can use (DEV-141).
+  const access = await getAccess();
+  if (access?.role === "team_member") redirect("/account/timesheets");
+  if (access?.role === "client") redirect("/forbidden");
+
   const name = session.user.name || session.user.email || "there";
 
   const [agg] = await db

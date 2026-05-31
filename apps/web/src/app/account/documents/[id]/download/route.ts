@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companyDocuments } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { getAccess } from "@/lib/auth/rbac";
 import { getFile } from "@/lib/storage";
 
 // Authenticated download of a company document (DEV-104). Owner-scoped; streams
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  const access = await getAccess();
+  if (access?.role !== "admin") return new Response("Forbidden", { status: 403 }); // DEV-141
 
   const { id } = await params;
   const [doc] = await db

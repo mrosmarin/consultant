@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies, expenses, projects } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { requireAdmin } from "@/lib/auth/rbac";
 import { listCompanyOptions } from "@/lib/companies";
 import { formatMoney } from "@/lib/money";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function ExpensesPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
+  await requireAdmin(); // admin-only section -- team members get /forbidden (DEV-141)
 
   const [companyOptions, projectRows, rows] = await Promise.all([
     listCompanyOptions(session.user.id),

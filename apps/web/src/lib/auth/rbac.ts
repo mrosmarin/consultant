@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { allowedEmails, ROLES, type Role } from "@/db/schema";
@@ -72,4 +72,23 @@ export async function requireUser(): Promise<Access> {
 // Admin-only.
 export async function requireAdmin(): Promise<Access> {
   return requireRole(["admin"]);
+}
+
+// The tenant (consultant) a user's logged time belongs to (DEV-141). Admins and
+// everyone else own their own data; a team member's time rolls up to the
+// consultant — resolved as the single admin account. Used to scope a team
+// member's timesheet to the tenant's companies and to stamp new entries with
+// user_id = the tenant owner (so the time flows into the tenant's invoicing
+// with no change to the owner-scoped billing queries).
+export async function getTenantOwnerId(access: Access): Promise<string> {
+  if (access.role !== "team_member") return access.user.id;
+  const res = await db.execute(
+    sql`select u.id::text as id from neon_auth."user" u
+        join allowed_emails a on a.email = lower(u.email)
+        where a.role = 'admin' and a.deleted_at is null
+        order by u."createdAt" asc limit 1`,
+  );
+  const rows = (Array.isArray(res) ? res : (res as { rows?: unknown[] }).rows) ?? [];
+  const owner = (rows[0] as { id?: string } | undefined)?.id;
+  return owner ?? access.user.id;
 }
