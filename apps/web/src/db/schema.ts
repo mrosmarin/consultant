@@ -151,8 +151,12 @@ export const timeEntries = pgTable("time_entries", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
-export const INVOICE_STATUSES = ["draft", "sent", "viewed", "paid", "overdue"] as const;
+export const INVOICE_STATUSES = ["draft", "sent", "viewed", "partial", "paid", "overdue"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+// How a payment was received (DEV-125). Manual methods + provider placeholders.
+export const PAYMENT_METHODS = ["check", "bank_transfer", "cash", "card", "other"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 // The invoices table is a shared document model (DEV-120): a row is an invoice
 // or a quote/estimate, distinguished by `type`. Quotes reuse the entire money +
@@ -329,4 +333,21 @@ export const documentBlobs = pgTable("document_blobs", {
   storageKey: text("storage_key").primaryKey(),
   data: text("data").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Payments recorded against an invoice (DEV-125/127). Manual ledger — checks,
+// bank transfers, cash, etc. An invoice's outstanding = amount − Σ(credit notes)
+// − Σ(payments); status flips to "partial" / "paid" as payments land. Owner-
+// scoped + RLS + soft-delete.
+export const payments = pgTable("payments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  invoiceId: uuid("invoice_id").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  method: text("method").notNull().default("check"),
+  reference: text("reference"),
+  receivedDate: date("received_date").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
