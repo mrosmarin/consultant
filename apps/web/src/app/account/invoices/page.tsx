@@ -4,7 +4,7 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { companies, invoices, invoiceLineItems, INVOICE_STATUSES } from "@/db/schema";
+import { companies, invoices, invoiceLineItems, payments, INVOICE_STATUSES } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 import { buildInvoiceDraft } from "@/lib/invoicing";
 import { formatMoney } from "@/lib/money";
@@ -19,6 +19,7 @@ const statusBadge: Record<string, string> = {
   draft: "bg-secondary text-secondary-foreground",
   sent: "bg-brand/15 text-brand",
   viewed: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  partial: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   paid: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   overdue: "bg-destructive/15 text-destructive",
 };
@@ -130,6 +131,16 @@ export default async function InvoicesPage() {
     creditByInvoice.set(c.creditedInvoiceId, (creditByInvoice.get(c.creditedInvoiceId) ?? 0) + Number(c.amount));
   }
 
+  // Payments per invoice (DEV-125) reduce the outstanding balance.
+  const payRows = await db
+    .select({ invoiceId: payments.invoiceId, amount: payments.amount })
+    .from(payments)
+    .where(and(eq(payments.userId, session.user.id), isNull(payments.deletedAt)));
+  const paidByInvoice = new Map<string, number>();
+  for (const p of payRows) {
+    paidByInvoice.set(p.invoiceId, (paidByInvoice.get(p.invoiceId) ?? 0) + Number(p.amount));
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -212,13 +223,22 @@ export default async function InvoicesPage() {
                             : ""}
                         </span>
                       ) : null}
-                      {(creditByInvoice.get(r.id) ?? 0) > 0 ? (
-                        <span className="block text-xs font-normal text-emerald-600 dark:text-emerald-400">
-                          − {formatMoney(creditByInvoice.get(r.id) ?? 0, r.currency)} credited ·{" "}
-                          {formatMoney(Number(r.amount) - (creditByInvoice.get(r.id) ?? 0), r.currency)}{" "}
-                          outstanding
-                        </span>
-                      ) : null}
+                      {(() => {
+                        const credited = creditByInvoice.get(r.id) ?? 0;
+                        const paid = paidByInvoice.get(r.id) ?? 0;
+                        if (credited === 0 && paid === 0) return null;
+                        const outstanding =
+                          Math.round((Number(r.amount) - credited - paid) * 100) / 100;
+                        return (
+                          <span className="block text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                            {paid > 0 ? `${formatMoney(paid, r.currency)} paid` : ""}
+                            {paid > 0 && credited > 0 ? " · " : ""}
+                            {credited > 0 ? `${formatMoney(credited, r.currency)} credited` : ""}
+                            {" · "}
+                            {formatMoney(outstanding, r.currency)} outstanding
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-2">
                       <form action={updateInvoiceStatus} className="flex items-center gap-2">

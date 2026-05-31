@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Clock, CreditCard, FileText, FileSignature, FolderKanban, LayoutDashboard, Receipt } from "lucide-react";
+import { Banknote, Building2, Clock, CreditCard, FileText, FileSignature, FolderKanban, LayoutDashboard, Receipt } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ const ITEMS = [
   { href: "/account/expenses", label: "Expenses", icon: CreditCard },
   { href: "/account/quotes", label: "Quotes", icon: FileSignature },
   { href: "/account/invoices", label: "Invoices", icon: FileText },
+  { href: "/account/payments", label: "Payments", icon: Banknote },
   { href: "/account/credit-notes", label: "Credit notes", icon: Receipt },
 ];
 
