@@ -12,12 +12,27 @@ export const leads = pgTable("leads", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
+// Portal roles (DEV-69). The allowlist row carries the role, so an invite IS the
+// role assignment; role resolves from the signed-in user's email at session time.
+//   - admin:       full access to the /account portal + all data + access mgmt
+//   - team_member: /account but timesheet-only (section gating — DEV-141)
+//   - client:      read-only /client portal scoped to their company (DEV-140)
+export const ROLES = ["admin", "team_member", "client"] as const;
+export type Role = (typeof ROLES)[number];
+
 // Portal access allowlist. Only emails present here (and not soft-deleted) may
 // sign up / sign in — enforced app-side in the auth server actions. Emails are
 // stored lowercase. RLS enabled as a backstop.
 export const allowedEmails = pgTable("allowed_emails", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
+  // Portal role for this email (DEV-69). Defaults to admin so every pre-RBAC
+  // row stays fully privileged after the migration.
+  role: text("role").notNull().default("admin"),
+  // For role = client: the company whose data this user may view (DEV-140).
+  // Null for admin / team_member. The owning consultant is derived from
+  // companies.user_id, so no separate owner column is needed.
+  companyId: uuid("company_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });

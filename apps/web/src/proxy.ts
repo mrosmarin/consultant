@@ -5,7 +5,9 @@ import { auth } from "@/lib/auth/server";
 // Next.js 16 uses proxy.ts (formerly middleware.ts). Protects the portal:
 // unauthenticated page navigations to /account/* are redirected to the sign-in page.
 const guard = auth.middleware({
-  loginUrl: "/auth/sign-in",
+  // `reason=auth` lets the sign-in page show a "please sign in" / session-expired
+  // notice when the guard bounced an unauthenticated portal navigation (DEV-69).
+  loginUrl: "/auth/sign-in?reason=auth",
 });
 
 // React server actions (form submits via useActionState) POST to these same
