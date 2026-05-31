@@ -208,3 +208,56 @@ export function buildTaxReport(rows: TaxInput[]): TaxGroup[] {
   groups.sort((a, b) => b.totalTax - a.totalTax);
   return groups;
 }
+
+// Time utilization (DEV-134): billable vs non-billable hours + realization rate,
+// overall and by month. Currency-free (hours). Profit margin needs a labor-cost
+// model we don't track yet — deferred.
+export type UtilizationInput = { workDate: string; hours: number; billable: boolean };
+
+export type UtilizationRow = {
+  month: string;
+  billable: number;
+  nonBillable: number;
+  total: number;
+  pct: number; // billable / total * 100
+};
+
+export type UtilizationReport = {
+  billable: number;
+  nonBillable: number;
+  total: number;
+  pct: number;
+  byMonth: UtilizationRow[];
+};
+
+export function buildUtilizationReport(rows: UtilizationInput[]): UtilizationReport {
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const pctOf = (b: number, t: number) => (t > 0 ? Math.round((b / t) * 1000) / 10 : 0);
+  const month = new Map<string, { b: number; n: number }>();
+  let billable = 0;
+  let nonBillable = 0;
+  for (const r of rows) {
+    const h = Number(r.hours) || 0;
+    if (h <= 0) continue;
+    const m = month.get(r.workDate.slice(0, 7)) ?? { b: 0, n: 0 };
+    if (r.billable) {
+      billable += h;
+      m.b += h;
+    } else {
+      nonBillable += h;
+      m.n += h;
+    }
+    month.set(r.workDate.slice(0, 7), m);
+  }
+  const total = billable + nonBillable;
+  const byMonth = [...month.entries()]
+    .map(([mo, v]) => ({
+      month: mo,
+      billable: r1(v.b),
+      nonBillable: r1(v.n),
+      total: r1(v.b + v.n),
+      pct: pctOf(v.b, v.b + v.n),
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  return { billable: r1(billable), nonBillable: r1(nonBillable), total: r1(total), pct: pctOf(billable, total), byMonth };
+}

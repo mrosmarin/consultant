@@ -1,6 +1,6 @@
 # Active Context
 
-_Last updated: 2026-05-30_
+_Last updated: 2026-05-31_
 
 > **RELEASE 2026-05-30.** Company/client portal + invoicing core shipped to **production** via **PR #42** (`main` `c730187`); `develop` and `main` reconciled (identical trees). DEV-101/102/103/106/107/108 all **Done**. The full invoicing-platform roadmap (**M7–M13**, DEV-109–138) is in Linear and mirrored at **`docs/roadmap.md`**. **Resume at: M7 (client/project depth) → M8 (invoice line-items keystone)**, or M3 content (insights/blog DEV-59/66, copy DEV-63/64).
 
@@ -21,6 +21,8 @@ _Last updated: 2026-05-30_
 - **`develop` and `main` are in sync** (`c730187`) — the company/client portal + invoicing (DEV-101/102/103/106/107/108) shipped to prod via **PR #42 (2026-05-30)**; `main` back-merged into `develop`. Next release: branch a `feature/dev-XXX-*` off `develop` → PR to `develop` → when ready, PR `develop`→`main` (apply pending migrations to prod first).
 
 ## Recent changes (newest first; deduped at the 2026-05-29 checkpoint)
+
+- **DEV-134 (time-utilization analysis — M12, 2026-05-31):** **Time utilization** section on /account/reports — billable vs non-billable hours, **overall** + **by month**. Pure `buildUtilizationReport` (lib/reports.ts) sums `time_entries.hours` split on `billable` (skips hours≤0), per month (`work_date` YYYY-MM), returns billable/nonBillable/total + `pct` (billable ÷ total, 1-dp). UI: 4 summary cards (Utilization % / Billable / Non-billable / Total hrs) + by-month table. No schema change. Gates green; **unit test PASSED** (7 assertions: total=16, billable=14, pct=87.5, May=75%, Jun=100%, month order) + **render round-trip PASSED** (seeded 6h+2h May, 8h Jun → page shows 87.5% / Billable 14 / May 75% / Jun 100%). **Profit margin DEFERRED** — no labor-cost/rate model is tracked, so margin can't be computed yet (noted in the UI: "Profit margin needs cost rates — not tracked yet"). Code-only — ships next develop→main. (PR pending.)
 
 - **DEV-135 (tax summary — M12, 2026-05-31):** Tax-collected report on /account/reports. Pure `buildTaxReport` (lib/reports.ts) sums tax on issued invoices (taxable = subtotal − discount; tax = tax_amount; tax>0 only) **by rate/label** + **by month**, per currency. **CSV export** route `/account/reports/tax` (authed) streams per-invoice tax detail (Date/Invoice/Client/Currency/Taxable/Tax label/Tax rate/Tax) for the accountant; "Download CSV" link on the page. No schema change. Gates green; **unit test PASSED** (8 assertions) + **render + CSV round-trip PASSED** (NY Sales Tax 8.875% → $266.25 total; CSV text/csv with 2 taxed rows, no-tax invoice excluded). Code-only — ships next develop→main. (PR pending.)
 
