@@ -4,11 +4,12 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
-import { companies, companyContacts, companyMilestones } from "@/db/schema";
+import { companies, companyContacts, companyDocuments, companyMilestones } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
 
 import { CompanyForm } from "../../company-form";
 import { CompanyContacts } from "../../company-contacts";
+import { CompanyDocuments } from "../../company-documents";
 import { CompanyMilestones } from "../../company-milestones";
 import { GenerateInvoiceButton } from "../../generate-invoice-button";
 
@@ -51,6 +52,24 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
       ),
     )
     .orderBy(asc(companyContacts.name));
+
+  const documents = await db
+    .select({
+      id: companyDocuments.id,
+      name: companyDocuments.name,
+      contentType: companyDocuments.contentType,
+      sizeBytes: companyDocuments.sizeBytes,
+      createdAt: companyDocuments.createdAt,
+    })
+    .from(companyDocuments)
+    .where(
+      and(
+        eq(companyDocuments.companyId, company.id),
+        eq(companyDocuments.userId, session.user.id),
+        isNull(companyDocuments.deletedAt),
+      ),
+    )
+    .orderBy(asc(companyDocuments.name));
 
   const milestones =
     company.billingType === "milestone"
@@ -122,6 +141,18 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
         </CardHeader>
         <CardContent>
           <CompanyContacts companyId={company.id} contacts={contacts} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Documents</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CompanyDocuments
+            companyId={company.id}
+            documents={documents.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() }))}
+          />
         </CardContent>
       </Card>
 

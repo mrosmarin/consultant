@@ -26,6 +26,49 @@ export type InvoicePdfData = {
   lines: { description: string; quantity: string; unitAmount: string; lineTotal: string }[];
 };
 
+// Map an invoice row (+ its lines) to the PDF data shape. Shared by the public
+// PDF route and the email-send action so the rendered document stays identical.
+export function invoicePdfDataFrom(
+  inv: {
+    invoiceNumber: string;
+    companyName: string | null;
+    paymentTermsDays: number | null;
+    issueDate: string;
+    dueDate: string | null;
+    currency: string;
+    subtotal: string | null;
+    discountAmount: string | null;
+    discountType: string | null;
+    discountValue: string | null;
+    taxLabel: string | null;
+    taxRate: string | null;
+    taxAmount: string | null;
+    amount: string;
+    notes: string | null;
+  },
+  lines: { description: string; quantity: string; unitAmount: string; lineTotal: string }[],
+): InvoicePdfData {
+  return {
+    docLabel: "Invoice",
+    number: inv.invoiceNumber,
+    companyName: inv.companyName,
+    issueDate: inv.issueDate,
+    dueDate: inv.dueDate,
+    currency: inv.currency,
+    subtotal: inv.subtotal,
+    discountAmount: inv.discountAmount,
+    discountType: inv.discountType,
+    discountValue: inv.discountValue,
+    taxLabel: inv.taxLabel,
+    taxRate: inv.taxRate,
+    taxAmount: inv.taxAmount,
+    amount: inv.amount,
+    notes: inv.notes,
+    paymentTermsDays: inv.paymentTermsDays,
+    lines,
+  };
+}
+
 const s = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#1f2937", fontFamily: "Helvetica" },
   row: { flexDirection: "row", justifyContent: "space-between" },
