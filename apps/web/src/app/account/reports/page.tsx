@@ -9,10 +9,12 @@ import { formatMoney } from "@/lib/money";
 import {
   buildAgingReport,
   buildRevenueReport,
+  buildTaxReport,
   AGING_BUCKETS,
   AGING_LABELS,
   type AgingInput,
   type RevenueInput,
+  type TaxInput,
 } from "@/lib/reports";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +84,11 @@ export default async function ReportsPage() {
       companyName: companies.name,
       currency: invoices.currency,
       amount: invoices.amount,
+      subtotal: invoices.subtotal,
+      discountAmount: invoices.discountAmount,
+      taxLabel: invoices.taxLabel,
+      taxRate: invoices.taxRate,
+      taxAmount: invoices.taxAmount,
       issueDate: invoices.issueDate,
     })
     .from(invoices)
@@ -100,6 +107,19 @@ export default async function ReportsPage() {
         companyName: r.companyName,
         currency: r.currency,
         amount: Number(r.amount),
+        issueDate: r.issueDate,
+      }),
+    ),
+  );
+  // Tax summary (DEV-135): taxable base = subtotal − discount; tax = tax_amount.
+  const tax = buildTaxReport(
+    revRows.map(
+      (r): TaxInput => ({
+        currency: r.currency,
+        taxLabel: r.taxLabel,
+        taxRate: r.taxRate,
+        taxable: Number(r.subtotal ?? 0) - Number(r.discountAmount ?? 0),
+        tax: Number(r.taxAmount ?? 0),
         issueDate: r.issueDate,
       }),
     ),
@@ -245,6 +265,77 @@ export default async function ReportsPage() {
                     <tr key={m.month} className="border-t">
                       <td className="px-4 py-2 font-mono text-xs">{m.month}</td>
                       <td className="px-4 py-2 text-right font-mono">{formatMoney(m.total, g.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))
+      )}
+
+      <div className="flex items-end justify-between gap-4 border-t pt-6">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Tax summary</h2>
+          <p className="text-muted-foreground text-sm">
+            Tax collected on issued invoices, by rate and month. Per currency.
+          </p>
+        </div>
+        <a
+          href="/account/reports/tax"
+          className="text-brand text-sm hover:underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Download CSV ↓
+        </a>
+      </div>
+
+      {tax.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No tax collected.</p>
+      ) : (
+        tax.map((g) => (
+          <div key={g.currency} className="grid gap-4 lg:grid-cols-2">
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/50 text-muted-foreground text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Rate ({g.currency})</th>
+                    <th className="px-4 py-2 text-right font-medium">Taxable</th>
+                    <th className="px-4 py-2 text-right font-medium">Tax</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.byLabel.map((l) => (
+                    <tr key={l.label} className="border-t">
+                      <td className="px-4 py-2">{l.label}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatMoney(l.taxable, g.currency)}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatMoney(l.tax, g.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t font-medium">
+                    <td className="px-4 py-2">Total</td>
+                    <td className="px-4 py-2 text-right font-mono">{formatMoney(g.totalTaxable, g.currency)}</td>
+                    <td className="px-4 py-2 text-right font-mono">{formatMoney(g.totalTax, g.currency)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/50 text-muted-foreground text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Month ({g.currency})</th>
+                    <th className="px-4 py-2 text-right font-medium">Tax</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.byMonth.map((m) => (
+                    <tr key={m.month} className="border-t">
+                      <td className="px-4 py-2 font-mono text-xs">{m.month}</td>
+                      <td className="px-4 py-2 text-right font-mono">{formatMoney(m.tax, g.currency)}</td>
                     </tr>
                   ))}
                 </tbody>

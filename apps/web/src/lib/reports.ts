@@ -149,3 +149,62 @@ export function buildRevenueReport(rows: RevenueInput[]): RevenueGroup[] {
   groups.sort((a, b) => b.total - a.total);
   return groups;
 }
+
+// Tax summary (DEV-135). Tax collected on issued invoices, grouped by tax
+// label/rate and by month, per currency. taxable = subtotal − discount (the
+// base tax was computed on); tax = tax_amount. Only rows with tax > 0 count.
+export type TaxInput = {
+  currency: string;
+  taxLabel: string | null;
+  taxRate: string | null;
+  taxable: number;
+  tax: number;
+  issueDate: string; // ISO yyyy-mm-dd
+};
+
+export type TaxGroup = {
+  currency: string;
+  byLabel: { label: string; taxable: number; tax: number }[];
+  byMonth: { month: string; taxable: number; tax: number }[];
+  totalTaxable: number;
+  totalTax: number;
+};
+
+export function buildTaxReport(rows: TaxInput[]): TaxGroup[] {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  type Acc = { taxable: number; tax: number };
+  const byCur = new Map<string, { label: Map<string, Acc>; month: Map<string, Acc>; tT: number; tX: number }>();
+  for (const r of rows) {
+    if (!(r.tax > 0)) continue;
+    const g = byCur.get(r.currency) ?? { label: new Map(), month: new Map(), tT: 0, tX: 0 };
+    byCur.set(r.currency, g);
+    const label = `${r.taxLabel?.trim() || "Tax"} (${Number(r.taxRate ?? 0)}%)`;
+    const month = r.issueDate.slice(0, 7);
+    const add = (m: Map<string, Acc>, k: string) => {
+      const a = m.get(k) ?? { taxable: 0, tax: 0 };
+      a.taxable += r.taxable;
+      a.tax += r.tax;
+      m.set(k, a);
+    };
+    add(g.label, label);
+    add(g.month, month);
+    g.tT += r.taxable;
+    g.tX += r.tax;
+  }
+  const groups: TaxGroup[] = [];
+  for (const [currency, g] of byCur) {
+    groups.push({
+      currency,
+      byLabel: [...g.label.entries()]
+        .map(([label, a]) => ({ label, taxable: r2(a.taxable), tax: r2(a.tax) }))
+        .sort((a, b) => b.tax - a.tax),
+      byMonth: [...g.month.entries()]
+        .map(([month, a]) => ({ month, taxable: r2(a.taxable), tax: r2(a.tax) }))
+        .sort((a, b) => a.month.localeCompare(b.month)),
+      totalTaxable: r2(g.tT),
+      totalTax: r2(g.tX),
+    });
+  }
+  groups.sort((a, b) => b.totalTax - a.totalTax);
+  return groups;
+}
