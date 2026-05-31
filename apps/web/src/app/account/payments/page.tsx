@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { companies, invoices, payments } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { requireAdmin } from "@/lib/auth/rbac";
 import { formatMoney } from "@/lib/money";
 
 import { deletePayment } from "./actions";
@@ -23,6 +24,7 @@ const METHOD_LABEL: Record<string, string> = {
 export default async function PaymentsPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
+  await requireAdmin(); // admin-only section -- team members get /forbidden (DEV-141)
   const uid = session.user.id;
 
   // Real invoices with their company currency.
