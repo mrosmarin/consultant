@@ -107,3 +107,45 @@ export function buildAgingReport(rows: AgingInput[], today: string): AgingCurren
   groups.sort((a, b) => b.total - a.total);
   return groups;
 }
+
+// Revenue reporting (DEV-133). Invoiced revenue (issued invoice amounts,
+// excluding drafts + credit notes) grouped by client and by month, per currency.
+export type RevenueInput = {
+  companyName: string | null;
+  currency: string;
+  amount: number;
+  issueDate: string; // ISO yyyy-mm-dd
+};
+
+export type RevenueGroup = {
+  currency: string;
+  byClient: { name: string; total: number }[];
+  byMonth: { month: string; total: number }[]; // YYYY-MM
+  total: number;
+};
+
+export function buildRevenueReport(rows: RevenueInput[]): RevenueGroup[] {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byCur = new Map<string, { client: Map<string, number>; month: Map<string, number>; total: number }>();
+  for (const r of rows) {
+    if (!(r.amount > 0)) continue;
+    const g = byCur.get(r.currency) ?? { client: new Map(), month: new Map(), total: 0 };
+    byCur.set(r.currency, g);
+    const name = r.companyName ?? "—";
+    const month = r.issueDate.slice(0, 7);
+    g.client.set(name, (g.client.get(name) ?? 0) + r.amount);
+    g.month.set(month, (g.month.get(month) ?? 0) + r.amount);
+    g.total += r.amount;
+  }
+  const groups: RevenueGroup[] = [];
+  for (const [currency, g] of byCur) {
+    groups.push({
+      currency,
+      byClient: [...g.client.entries()].map(([name, t]) => ({ name, total: r2(t) })).sort((a, b) => b.total - a.total),
+      byMonth: [...g.month.entries()].map(([month, t]) => ({ month, total: r2(t) })).sort((a, b) => a.month.localeCompare(b.month)),
+      total: r2(g.total),
+    });
+  }
+  groups.sort((a, b) => b.total - a.total);
+  return groups;
+}
