@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-05-29_
+_Last updated: 2026-05-31_
 
 ## What works
 
@@ -66,7 +66,7 @@ _Last updated: 2026-05-29_
 
 ## Current status
 
-**M1–M5 live in production at https://endlessworlds.xyz, incl. the company/client portal + invoicing core.** Last prod release **PR #42 (`c730187`, 2026-05-30)** — DEV-101/102/103/106/107/108, all Done; prod Neon at `0005`. SEO + GA4 live; custom domain live; isolated staging/QA (resettable via `make db-reset-staging`). **Roadmap:** the full invoicing platform is planned as **M7–M13** (`docs/roadmap.md` + Linear DEV-109–138); start at **M7 client/project depth → M8 invoice line-items (keystone DEV-115)**. **Also open:** M3 content (insights/blog DEV-59/66, copy DEV-63/64), RBAC (DEV-69), utilities showcase (DEV-71), and a real test suite (still no automated coverage).
+**M1–M5 live in production at https://endlessworlds.xyz, incl. the company/client portal + invoicing core.** Last prod release **PR #42 (`c730187`, 2026-05-30)** — DEV-101/102/103/106/107/108, all Done; prod Neon at `0005`. SEO + GA4 live; custom domain live; isolated staging/QA (resettable via `make db-reset-staging`). **Roadmap:** the full invoicing platform is planned as **M7–M13** (`docs/roadmap.md` + Linear DEV-109–138); start at **M7 client/project depth → M8 invoice line-items (keystone DEV-115)**. **Also open:** M3 content (insights/blog DEV-59/66, copy DEV-63/64), RBAC (DEV-69), utilities showcase (DEV-71), and a real test suite (still no automated coverage). **In flight on `develop` (post-#42, awaiting next prod release):** M7–M11 invoicing build-out (DEV-109/110/115–124/139, quotes/credit-notes/payments) + **M12 reporting (COMPLETE) at `/account/reports`** — A/R aging (DEV-132), revenue (DEV-133), tax summary + CSV (DEV-135), time utilization (DEV-134), and **timesheet reporting + CSV/PDF export (DEV-74)** at `/account/reports/timesheets` — all unit- + round-trip-tested, code-only. **Next: cut the M12 reporting prod release (`develop` → `main`).**
 
 ## Known issues
 
