@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Banknote, Building2, Clock, CreditCard, FileText, FileSignature, FolderKanban, LayoutDashboard, Receipt, TrendingUp } from "lucide-react";
+import { Banknote, Building2, Clock, CreditCard, FileText, FileSignature, FolderKanban, LayoutDashboard, Receipt, ShieldCheck, TrendingUp } from "lucide-react";
 
+import type { Role } from "@/db/schema";
 import { cn } from "@/lib/utils";
 
-const ITEMS = [
+// `roles` restricts an item to those roles; omit it to show for everyone in the
+// /account portal. Team-member section gating lands in DEV-141.
+const ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; roles?: Role[] }[] = [
   { href: "/account", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/account/companies", label: "Companies", icon: Building2 },
   { href: "/account/projects", label: "Projects", icon: FolderKanban },
@@ -17,13 +20,14 @@ const ITEMS = [
   { href: "/account/payments", label: "Payments", icon: Banknote },
   { href: "/account/credit-notes", label: "Credit notes", icon: Receipt },
   { href: "/account/reports", label: "Reports", icon: TrendingUp },
+  { href: "/account/access", label: "Access", icon: ShieldCheck, roles: ["admin"] },
 ];
 
-export function PortalNav() {
+export function PortalNav({ role }: { role: Role }) {
   const pathname = usePathname();
   return (
     <nav className="flex gap-1 p-2 md:flex-col md:p-4">
-      {ITEMS.map((item) => {
+      {ITEMS.filter((item) => !item.roles || item.roles.includes(role)).map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
         return (
           <Link
