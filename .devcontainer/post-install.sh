@@ -36,59 +36,110 @@ sudo make install
 pnpm add turbo --global
 
 sudo chown -R 1000:1000 /home/node/.claude 
-cat > ~/.claude/settings.json << 'EOF'
+# Always (re)write global settings so a stale copy persisted in the
+# claude-code-config volume doesn't shadow template updates.
+cat > ~/.claude/settings.json << 'SETTINGS'
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "defaultMode": "acceptEdits",
   "permissions": {
     "allow": [
       "mcp__*",
-      "Bash(find *)",
-      "Bash(pwd)",
-      "Bash(awk *)",
-      "Bash(env)",
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)",
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(grep *)",
+      "Bash(find *)",
       "Bash(echo *)",
-      "Bash(wc *)",
+      "Bash(pwd)",
+      "Bash(which *)",
       "Bash(head *)",
       "Bash(tail *)",
+      "Bash(wc *)",
       "Bash(sort *)",
       "Bash(uniq *)",
       "Bash(diff *)",
-      "Bash(which *)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(touch *)",
+      "Bash(test *)",
+      "Bash(env)",
       "Bash(git *)",
       "Bash(gh *)",
+      "Bash(npm *)",
       "Bash(npx *)",
       "Bash(pnpm *)",
-      "Bash(npm *)",
+      "Bash(yarn *)",
       "Bash(node *)",
       "Bash(python3 *)",
-      "Bash(deno *)",
+      "Bash(pip *)",
+      "Bash(uv *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(mypy *)",
+      "Bash(go *)",
+      "Bash(cargo *)",
       "Bash(make *)",
+      "Bash(jq *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
       "Bash(curl *)",
-      "Bash(timeout *)",
-      "Bash(pkill -f *)",
-      "Bash(*supabase *)",
-      "Bash(*playwright *)",
-      "Bash(*prisma *)"
+      "Bash(bd *)",
+      "Bash(bv *)",
+      "Bash(chmod *)",
+      "Bash(claude *)",
+      "Bash(cut *)",
+      "Bash(deno *)",
+      "Bash(docker *)",
+      "Bash(env *)",
+      "Bash(export *)",
+      "Bash(helm *)",
+      "Bash(kubectl *)",
+      "Bash(ln *)",
+      "Bash(printf *)",
+      "Bash(pwd *)",
+      "Bash(source *)",
+      "Bash(tee *)",
+      "Bash(tr *)",
+      "Bash(wget *)",
+      "Bash(xargs *)",
+      "Bash(yq *)"
     ],
     "deny": [
-      "Bash(rm -rf *)",
-      "Bash(rm -r *)",
-      "Bash(sudo *)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(rm -rf $HOME*)",
+      "Bash(sudo rm*)",
+      "Bash(:(){ :|:& };:*)",
+      "Bash(mkfs*)",
+      "Bash(dd if=* of=/dev/*)",
+      "Bash(> /dev/sd*)",
+      "Bash(chmod -R 777 /*)",
       "Bash(git push --force*)",
+      "Bash(git push -f*)",
       "Bash(git reset --hard*)",
       "Bash(git clean -fd*)",
       "Read(./.env)",
       "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
       "Read(./secrets/**)",
+      "Read(**/secrets/**)",
       "Read(~/.ssh/**)",
       "Read(/root/.ssh/**)",
       "Read(~/.aws/credentials)",
       "Read(~/.config/gcloud/**)",
-      "Read(~/.azure/**)"
+      "Read(~/.azure/**)",
+      "Edit(./.env)",
+      "Edit(**/.env)",
+      "Write(./.env)",
+      "Write(**/.env)"
     ]
   },
   "additionalDirectories": [
@@ -100,7 +151,10 @@ cat > ~/.claude/settings.json << 'EOF'
   "theme": "dark",
   "enableAllProjectMcpServers": true
 }
-EOF
+SETTINGS
+echo "✓ Claude Code global settings written"
+
+echo ""
  
 echo "✓ Claude Code global settings written to ~/.claude/settings.json"
 
