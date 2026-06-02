@@ -166,8 +166,43 @@ claude-audit-global: ## Audit global Claude Code settings
 	bash scripts/claude-audit.sh --global
 
 .PHONY: claude-audit-verbose
-claude-audit-verbose: ## Verbose audit with raw transcript matches
+claude-audit-verbose: ## Audit + list every command Claude has run
 	bash scripts/claude-audit.sh --verbose
+
+.PHONY: claude-fix
+claude-fix: ## Audit, then interactively add prompt-driving commands to allow list (live + postinstall)
+	bash scripts/claude-audit.sh --fix
+
+.PHONY: claude-fix-all
+claude-fix-all: ## Like claude-fix but also adds common coverage-gap commands
+	bash scripts/claude-audit.sh --fix-all
+
+.PHONY: claude-fix-yes
+claude-fix-yes: ## Same as claude-fix but applies without prompting
+	bash scripts/claude-audit.sh --fix --yes
+
+.PHONY: postinstall
+postinstall: ## Re-run the devcontainer postinstall (reinstall tools + refresh Claude settings)
+	bash .devcontainer/post-install.sh
+
+.PHONY: claude-settings-reset
+claude-settings-reset: ## Rewrite global Claude Code settings from postinstall (fixes stale volume copy)
+	@echo "→ Rewriting ~/.claude/settings.json from the template's postinstall block..."
+	@awk '/cat > ~\/.claude\/settings.json << .SETTINGS./{f=1; next} /^SETTINGS$$/{f=0} f' \
+		.devcontainer/post-install.sh > ~/.claude/settings.json
+	@echo "✓ Global Claude settings reset. Restart Claude Code to apply."
+	@echo "  Review with: make claude-audit"
+
+.PHONY: claude-clear-approvals
+claude-clear-approvals: ## Clear accumulated per-project 'always allow' entries in ~/.claude.json
+	@if [[ -f ~/.claude.json ]]; then \
+		jq '(.projects // {}) |= map_values(.allowedTools = [])' ~/.claude.json > /tmp/claude.json \
+			&& mv /tmp/claude.json ~/.claude.json \
+			&& echo "✓ Cleared accumulated approvals. Restart Claude Code."; \
+	else \
+		echo "~/.claude.json not found — nothing to clear."; \
+	fi
+
 
 # ─── Daily shortcuts ─────────────────────────────────────────────────
 
