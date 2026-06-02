@@ -40,7 +40,7 @@ All development runs inside a **devcontainer** (VS Code + Docker-in-Docker).
 
 ```bash
 # 1. Open in the devcontainer (VS Code prompts to "Reopen in Container").
-#    postCreate runs .devcontainer/post-install.sh.
+#    postCreate runs .devcontainer/postinstall.sh.
 
 # 2. Install dependencies
 pnpm install        # or: make install
