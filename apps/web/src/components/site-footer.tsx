@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function SiteFooter() {
@@ -6,8 +7,17 @@ export function SiteFooter() {
     <footer className="border-t">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
-          <p className="font-semibold">
-            Endless<span className="text-brand">Worlds</span>
+          <p className="flex items-center gap-2 font-semibold">
+            <Image
+              src="/logo-mark.png"
+              alt=""
+              width={48}
+              height={24}
+              className="h-6 w-auto"
+            />
+            <span>
+              Endless<span className="text-brand">Worlds</span>
+            </span>
           </p>
           <p className="text-muted-foreground max-w-xs text-sm">
             Engineering leadership &amp; AI-native architecture for teams that need to ship.
