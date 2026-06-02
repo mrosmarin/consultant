@@ -364,7 +364,7 @@ if [[ "$FIX" == true ]]; then
   echo ""
   echo -e "${D}This updates BOTH:${N}"
   echo -e "${D}  • ~/.claude/settings.json   (takes effect on next Claude Code restart)${N}"
-  echo -e "${D}  • .devcontainer/post-install.sh  (so it survives container rebuilds)${N}"
+  echo -e "${D}  • .devcontainer/postinstall.sh  (so it survives container rebuilds)${N}"
   echo ""
 
   if [[ "$ASSUME_YES" != true ]]; then
@@ -390,7 +390,7 @@ if [[ "$FIX" == true ]]; then
   fi
 
   # ── 2. Update postinstall.sh allow block ──
-  PI=".devcontainer/post-install.sh"
+  PI=".devcontainer/postinstall.sh"
   if [[ -f "$PI" ]]; then
     NEW_CMDS="$NEW_CMDS" python3 - "$PI" << 'PYFIX'
 import sys, os, re, json
@@ -428,12 +428,12 @@ with open(path, "w") as f:
 
 print(f"  Added {len(added)} rule(s) to postinstall.sh")
 PYFIX
-    echo -e "${G}✓ Updated .devcontainer/post-install.sh${N}"
+    echo -e "${G}✓ Updated .devcontainer/postinstall.sh${N}"
     echo ""
     echo -e "${D}Commit the postinstall.sh change so teammates/rebuilds get it:${N}"
-    echo -e "${D}  git add .devcontainer/post-install.sh && git commit -m 'chore: allow audited commands'${N}"
+    echo -e "${D}  git add .devcontainer/postinstall.sh && git commit -m 'chore: allow audited commands'${N}"
   else
-    echo -e "${Y}⚠ .devcontainer/post-install.sh not found — skipped${N}"
+    echo -e "${Y}⚠ .devcontainer/postinstall.sh not found — skipped${N}"
   fi
 
   echo ""

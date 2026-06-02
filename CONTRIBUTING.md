@@ -106,7 +106,7 @@ All development environments use **devcontainers with VS Code and Docker-in-Dock
 
 ```bash
 # 1. Open in devcontainer (VS Code will prompt, or use the command palette).
-#    postCreate runs .devcontainer/post-install.sh (pnpm, turbo, gh, etc.)
+#    postCreate runs .devcontainer/postinstall.sh (pnpm, turbo, gh, etc.)
 
 # 2. Install dependencies
 pnpm install

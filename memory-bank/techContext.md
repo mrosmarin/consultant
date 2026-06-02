@@ -19,7 +19,7 @@
 
 ## Development environment
 
-- **Devcontainer** (VS Code + Docker-in-Docker). `postCreate` runs `.devcontainer/post-install.sh`, which installs pnpm/turbo (global), gh, commitizen-go, Go, and the Claude/Kilo CLIs.
+- **Devcontainer** (VS Code + Docker-in-Docker). `postCreate` runs `.devcontainer/postinstall.sh`, which installs pnpm/turbo (global), gh, commitizen-go, Go, and the Claude/Kilo CLIs.
 - Tooling tokens live in `.devcontainer/.env` (gitignored, auto-loaded into the container): `LINEAR_API_KEY`, `CONTEXT7_TOKEN`, `GITHUB_TOKEN`, `GITHUB_PERSONAL_ACCESS_TOKEN`, `VERCEL_TOKEN`. These are MCP/CLI inputs — **not** app runtime vars.
 - App env vars live in `apps/web/.env.local` (gitignored): `DATABASE_URL` (pooled), `DATABASE_URL_UNPOOLED` (direct, migrations), `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET` (server-only).
 - The Postgres service in `.devcontainer/docker-compose.yml` stays **commented out** — Neon is cloud, so there's no local DB container at all.

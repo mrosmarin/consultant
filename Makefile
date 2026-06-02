@@ -183,13 +183,13 @@ claude-fix-yes: ## Same as claude-fix but applies without prompting
 
 .PHONY: postinstall
 postinstall: ## Re-run the devcontainer postinstall (reinstall tools + refresh Claude settings)
-	bash .devcontainer/post-install.sh
+	bash .devcontainer/postinstall.sh
 
 .PHONY: claude-settings-reset
 claude-settings-reset: ## Rewrite global Claude Code settings from postinstall (fixes stale volume copy)
 	@echo "→ Rewriting ~/.claude/settings.json from the template's postinstall block..."
 	@awk '/cat > ~\/.claude\/settings.json << .SETTINGS./{f=1; next} /^SETTINGS$$/{f=0} f' \
-		.devcontainer/post-install.sh > ~/.claude/settings.json
+		.devcontainer/postinstall.sh > ~/.claude/settings.json
 	@echo "✓ Global Claude settings reset. Restart Claude Code to apply."
 	@echo "  Review with: make claude-audit"
 
