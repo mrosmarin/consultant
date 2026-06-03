@@ -17,12 +17,20 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center" aria-label="EndlessWorlds — home">
           <Image
-            src="/logo-wordmark.png"
+            src="/logo-wordmark-light.png"
             alt="EndlessWorlds"
-            width={475}
-            height={200}
+            width={490}
+            height={160}
             priority
-            className="h-10 w-auto"
+            className="h-10 w-auto dark:hidden"
+          />
+          <Image
+            src="/logo-wordmark-dark.png"
+            alt="EndlessWorlds"
+            width={490}
+            height={160}
+            priority
+            className="hidden h-10 w-auto dark:block"
           />
         </Link>
         <nav className="text-muted-foreground hidden items-center gap-6 text-sm md:flex">

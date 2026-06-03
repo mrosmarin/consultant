@@ -8,11 +8,18 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
           <Image
-            src="/logo-wordmark.png"
+            src="/logo-wordmark-light.png"
             alt="EndlessWorlds"
-            width={475}
-            height={200}
-            className="h-9 w-auto"
+            width={490}
+            height={160}
+            className="h-9 w-auto dark:hidden"
+          />
+          <Image
+            src="/logo-wordmark-dark.png"
+            alt="EndlessWorlds"
+            width={490}
+            height={160}
+            className="hidden h-9 w-auto dark:block"
           />
           <p className="text-muted-foreground max-w-xs text-sm">
             Engineering leadership &amp; AI-native architecture for teams that need to ship.
