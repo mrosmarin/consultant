@@ -15,18 +15,15 @@ export function SiteHeader() {
   return (
     <header className="bg-background/80 sticky top-0 z-40 w-full border-b backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+        <Link href="/" className="flex items-center" aria-label="EndlessWorlds — home">
           <Image
-            src="/logo-mark.png"
-            alt=""
-            width={56}
-            height={28}
+            src="/logo-wordmark.png"
+            alt="EndlessWorlds"
+            width={475}
+            height={200}
             priority
-            className="h-7 w-auto"
+            className="h-10 w-auto"
           />
-          <span>
-            Endless<span className="text-brand">Worlds</span>
-          </span>
         </Link>
         <nav className="text-muted-foreground hidden items-center gap-6 text-sm md:flex">
           {NAV.map((item) => (
