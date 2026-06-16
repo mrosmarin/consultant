@@ -42,10 +42,15 @@ jobs:
       - name: Build
         run: pnpm turbo run build
         env:
-          # Neon Auth validates these at module load during `next build`,
-          # so the build needs them even though nothing runs at build time.
-          NEON_AUTH_BASE_URL: ${{ secrets.NEON_AUTH_BASE_URL }}
-          NEON_AUTH_COOKIE_SECRET: ${{ secrets.NEON_AUTH_COOKIE_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Build-only placeholders. The Neon Auth client instantiates at module
+          # load during `next build` (and the /api/auth route calls auth.handler()
+          # at module scope), so these must be present + non-empty — but the build
+          # never connects to any service. Real values live in Vercel for deploys.
+          # (DATABASE_URL is unused at build since the db client is lazy — DEV-152 —
+          # but a valid placeholder is provided for safety.) The previous
+          # `secrets.*` references were empty, which is what broke the build.
+          NEON_AUTH_BASE_URL: https://build.placeholder.local
+          NEON_AUTH_COOKIE_SECRET: ci-build-only-not-used-at-runtime
+          DATABASE_URL: postgresql://build:build@localhost:5432/build
       # - name: Test
       #   run: pnpm turbo run test   # enable once Vitest is wired (no test script yet)
