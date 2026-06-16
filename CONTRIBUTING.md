@@ -88,6 +88,27 @@ GitHub Actions is **over quota for this billing cycle** (resets ~June 2026). Unt
 - For one-off skips, include `[skip ci]` in the commit subject.
 - With no branch protection, CI is never *required* to merge, so skipping it doesn't block the flow. This is a deliberate, time-boxed exception.
 
+### Migrations in CI (DEV-149)
+
+Drizzle migrations apply automatically on push, matched to the branch's environment:
+
+- push to **`develop`** → `drizzle-kit migrate` against the **staging** database
+- push to **`main`** → against **production**
+
+> Workflow: [`.github/workflows/migrate.yml`](.github/workflows/migrate.yml). Gated on the same `RUN_CI` kill-switch; `concurrency` won't interrupt a migration in flight.
+
+**One-time setup** (the connection strings are the **direct / unpooled** Neon URLs):
+
+```bash
+gh secret set STAGING_DATABASE_URL_UNPOOLED --repo mrosmarin/consultant   # paste staging unpooled URL
+gh secret set PROD_DATABASE_URL_UNPOOLED    --repo mrosmarin/consultant   # paste prod unpooled URL
+gh variable set RUN_CI --body true          --repo mrosmarin/consultant   # enable (once quota has reset)
+```
+
+**Keep migrations expand/contract (additive).** Vercel deploys on push independently of Actions, so the migrate job and the deploy race. Additive migrations (add columns/tables; never rename/drop in the same release, and have new code tolerate a missing column/table — e.g. a fail-safe read) make that race harmless. For a rename/drop, split it across two releases.
+
+`make db-migrate` still applies to **dev** locally (reads `apps/web/.env.local`).
+
 ## Testing
 
 **Unit / component tests:**
