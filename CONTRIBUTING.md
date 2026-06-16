@@ -109,6 +109,22 @@ gh variable set RUN_CI --body true          --repo mrosmarin/consultant   # enab
 
 `make db-migrate` still applies to **dev** locally (reads `apps/web/.env.local`).
 
+### Migration data safety — no prod data loss (DEV-150)
+
+**Production holds real, irreplaceable data.** Every migration is assumed to touch it.
+
+- **Additive / expand-contract by default.** Add columns/tables (nullable), with new code that tolerates the old shape (fail-safe reads). Required anyway: the CI pipeline auto-applies on merge and races the Vercel deploy.
+- **Destructive or breaking changes** — `DROP TABLE/COLUMN/CONSTRAINT`, `RENAME`, `ALTER … SET DATA TYPE`, `SET NOT NULL`, `TRUNCATE`/`DELETE`, table merge/split — **require a written data-migration plan** before the migration is authored:
+  1. **Inventory** the affected data (row counts, columns/tables).
+  2. **Snapshot prod first** — branch the prod Neon project for an instant restore point *before* anything changes.
+  3. **Expand → backfill → verify → contract** across separate releases (never drop/rename in the same release you add the replacement; verify counts match and nothing is null/dropped before contracting).
+  4. Document the **rollback path** + before/after verification queries.
+- **The CI guard enforces this.** On `push`, [`migrate.yml`](.github/workflows/migrate.yml) scans the migrations changed in that push for destructive SQL and **fails the run** unless the migration file opts in with a line:
+  ```sql
+  -- destructive-approved: <reason / link to the data-migration plan>
+  ```
+  Only add that marker once the plan is written, prod is snapshotted, and backfill/verify are handled. (`workflow_dispatch` — a deliberate manual run — bypasses the guard.)
+
 ## Testing
 
 **Unit / component tests:**
