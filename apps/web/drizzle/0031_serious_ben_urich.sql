@@ -1,0 +1,1 @@
+ALTER TABLE "business_settings" ADD COLUMN "invoice_delete_protection" text DEFAULT 'block' NOT NULL;

@@ -175,6 +175,11 @@ export const timeEntries = pgTable("time_entries", {
 export const INVOICE_STATUSES = ["draft", "sent", "viewed", "partial", "paid", "overdue"] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
+// How deleting an ISSUED (non-draft) invoice is handled (DEV-155): block it,
+// warn-then-confirm, or allow freely. Drafts are always deletable.
+export const INVOICE_DELETE_MODES = ["block", "warn", "allow"] as const;
+export type InvoiceDeleteMode = (typeof INVOICE_DELETE_MODES)[number];
+
 // How a payment was received (DEV-125). Manual methods + provider placeholders.
 export const PAYMENT_METHODS = ["check", "bank_transfer", "cash", "card", "other"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -410,6 +415,8 @@ export const businessSettings = pgTable("business_settings", {
   payLinkUrl: text("pay_link_url"),
   // Free-text catch-all shown under Payment.
   remitNote: text("remit_note"),
+  // Guard for deleting issued (non-draft) invoices (DEV-155): block | warn | allow.
+  invoiceDeleteProtection: text("invoice_delete_protection").notNull().default("block"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),

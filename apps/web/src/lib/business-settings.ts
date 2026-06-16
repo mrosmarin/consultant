@@ -1,9 +1,17 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { businessSettings } from "@/db/schema";
+import { businessSettings, INVOICE_DELETE_MODES, type InvoiceDeleteMode } from "@/db/schema";
 
 export type BusinessSettings = typeof businessSettings.$inferSelect;
+
+// How deleting an issued invoice is handled; defaults to "block" (DEV-155).
+export function invoiceDeleteMode(s: BusinessSettings | null): InvoiceDeleteMode {
+  const v = s?.invoiceDeleteProtection;
+  return (INVOICE_DELETE_MODES as readonly string[]).includes(v ?? "")
+    ? (v as InvoiceDeleteMode)
+    : "block";
+}
 
 // Fallback issuer (matches the previous hardcoded invoice header) so invoices
 // still render sensibly before the owner fills in /account/settings (DEV-148).

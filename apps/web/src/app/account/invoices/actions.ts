@@ -23,7 +23,7 @@ import { parseLineItems, parseDiscount } from "@/lib/invoice-input";
 import { sendEmail } from "@/lib/email";
 import { formatMoney } from "@/lib/money";
 import { InvoicePdf, invoicePdfDataFrom } from "@/lib/pdf/invoice-pdf";
-import { getBusinessSettings, issuerInfo } from "@/lib/business-settings";
+import { getBusinessSettings, issuerInfo, invoiceDeleteMode } from "@/lib/business-settings";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
 
@@ -397,13 +397,40 @@ export async function updateInvoiceStatus(formData: FormData): Promise<void> {
   revalidatePath("/account");
 }
 
-export async function deleteInvoice(formData: FormData): Promise<void> {
-  const { data: session } = await auth.getSession();
-  if (!session?.user) return;
-  const id = formData.get("id") as string;
-  if (!id) return;
+export type DeleteInvoiceState = { ok: boolean; error?: string } | null;
 
+export async function deleteInvoice(
+  _prev: DeleteInvoiceState,
+  formData: FormData,
+): Promise<DeleteInvoiceState> {
+  const { data: session } = await auth.getSession();
+  if (!session?.user) return { ok: false, error: "You're not signed in." };
+  const id = (formData.get("id") as string) ?? "";
+  if (!id) return { ok: false, error: "Missing invoice." };
   const uid = session.user.id;
+
+  const [inv] = await db
+    .select({ status: invoices.status })
+    .from(invoices)
+    .where(and(eq(invoices.id, id), eq(invoices.userId, uid), isNull(invoices.deletedAt)))
+    .limit(1);
+  if (!inv) return { ok: false, error: "Invoice not found." };
+
+  // Guard deleting ISSUED (non-draft) invoices per the owner's setting (DEV-155).
+  // Drafts are always deletable. Server-side is authoritative — the UI mirrors it.
+  if (inv.status !== "draft") {
+    const mode = invoiceDeleteMode(await getBusinessSettings(uid));
+    if (mode === "block") {
+      return {
+        ok: false,
+        error: "Deleting sent/paid invoices is turned off in Settings — change it there to delete this one.",
+      };
+    }
+    if (mode === "warn" && formData.get("confirm") !== "1") {
+      return { ok: false, error: "This invoice has been issued — confirm to delete (it will un-bill its work)." };
+    }
+  }
+
   await db
     .update(invoices)
     .set({ deletedAt: new Date() })
@@ -429,4 +456,5 @@ export async function deleteInvoice(formData: FormData): Promise<void> {
   revalidatePath("/account");
   revalidatePath("/account/timesheets");
   revalidatePath("/account/expenses");
+  return { ok: true };
 }

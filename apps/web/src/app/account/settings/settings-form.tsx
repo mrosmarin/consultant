@@ -104,6 +104,23 @@ export function SettingsForm({ settings }: { settings: BusinessSettings | null }
         placeholder="e.g. Please include the invoice number with your payment."
       />
 
+      <SectionTitle hint="Deleting an invoice un-bills its time/expenses. Drafts always delete; this controls sent/paid ones.">
+        Invoices
+      </SectionTitle>
+      <div className="grid gap-2 sm:max-w-sm">
+        <Label htmlFor="invoiceDeleteProtection">Deleting a sent/paid invoice</Label>
+        <select
+          id="invoiceDeleteProtection"
+          name="invoiceDeleteProtection"
+          defaultValue={s?.invoiceDeleteProtection ?? "block"}
+          className="border-input h-9 rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm"
+        >
+          <option value="block">Don&apos;t allow (block)</option>
+          <option value="warn">Warn, then confirm</option>
+          <option value="allow">Allow</option>
+        </select>
+      </div>
+
       <div className="flex items-center gap-3 border-t pt-6">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save settings"}
