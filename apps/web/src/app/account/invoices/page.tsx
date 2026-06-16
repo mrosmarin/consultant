@@ -8,10 +8,12 @@ import { companies, invoices, invoiceLineItems, payments, INVOICE_STATUSES } fro
 import { auth } from "@/lib/auth/server";
 import { requireAdmin } from "@/lib/auth/rbac";
 import { buildInvoiceDraft } from "@/lib/invoicing";
+import { getBusinessSettings, invoiceDeleteMode } from "@/lib/business-settings";
 import { formatMoney } from "@/lib/money";
 
-import { deleteInvoice, updateInvoiceStatus } from "./actions";
+import { updateInvoiceStatus } from "./actions";
 import { AddInvoiceForm, type InvoicePrefill } from "./add-invoice-form";
+import { DeleteInvoiceButton } from "./delete-invoice-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,7 @@ export default async function InvoicesPage() {
   const { data: session } = await auth.getSession();
   if (!session?.user) redirect("/auth/sign-in");
   await requireAdmin(); // admin-only section -- team members get /forbidden (DEV-141)
+  const deleteMode = invoiceDeleteMode(await getBusinessSettings(session.user.id)); // DEV-155
 
   const [companyRows, rows] = await Promise.all([
     db
@@ -282,12 +285,7 @@ export default async function InvoicesPage() {
                           </Link>
                         ) : null}
                         <SendInvoiceButton invoiceId={r.id} />
-                        <form action={deleteInvoice}>
-                          <input type="hidden" name="id" value={r.id} />
-                          <button className="text-muted-foreground hover:text-destructive text-xs">
-                            Delete
-                          </button>
-                        </form>
+                        <DeleteInvoiceButton invoiceId={r.id} status={r.status} mode={deleteMode} />
                       </div>
                       {r.sentAt ? (
                         <span className="text-muted-foreground mt-1 block text-xs">
