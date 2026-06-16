@@ -185,7 +185,8 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
         isNull(expenses.billedAt),
         lte(expenses.expenseDate, today),
       ),
-    );
+    )
+    .orderBy(asc(expenses.expenseDate));
   let expenseSubtotal = 0;
   const expenseLines: DraftLineItem[] = expenseRows.map((e) => {
     const amt = Number(e.amount);
@@ -226,7 +227,8 @@ export async function buildInvoiceDraft(company: Company, userId: string): Promi
           isNull(timeEntries.billedAt),
           lte(timeEntries.workDate, period.end),
         ),
-      );
+      )
+      .orderBy(asc(timeEntries.workDate));
     // One line item per billable unbilled time entry, at its own snapshotted
     // rate (entry override → project → company; fall back to the company rate
     // for legacy entries). Subtotal = Σ(lineTotal).
