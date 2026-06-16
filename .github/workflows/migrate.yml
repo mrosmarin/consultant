@@ -1,0 +1,55 @@
+name: Migrate
+
+# Apply pending Drizzle migrations to the environment that matches the branch:
+#   push to develop -> STAGING database
+#   push to main    -> PRODUCTION database
+# Replaces the manual `make db-migrate` hand-off for staging/prod (DEV-149).
+#
+# Requires two repo secrets (the DIRECT / unpooled Neon connection strings):
+#   STAGING_DATABASE_URL_UNPOOLED
+#   PROD_DATABASE_URL_UNPOOLED
+# See CONTRIBUTING.md → "Migrations in CI".
+#
+# Discipline: keep migrations EXPAND/CONTRACT (additive — add columns/tables,
+# never rename/drop in the same release). Vercel deploys on push independently
+# of Actions, so the migrate job and the deploy race; additive migrations make
+# that race harmless (new code tolerates the old schema and vice-versa).
+
+on:
+  push:
+    branches: [develop, main]
+  # Manual trigger: pick the branch to run on (develop → staging, main → prod).
+  # Useful for applying a migration without a fresh push.
+  workflow_dispatch:
+
+# Never interrupt a migration mid-flight.
+concurrency:
+  group: migrate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    # Same kill-switch as the quality workflow: set the repo variable
+    # RUN_CI=false to skip while Actions is over quota.
+    if: ${{ vars.RUN_CI != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations → ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+        working-directory: apps/web
+        run: pnpm db:migrate
+        env:
+          # drizzle.config.ts reads DATABASE_URL_UNPOOLED from the env (its
+          # dotenv .env.local load is a no-op in CI). Pick the target by branch.
+          DATABASE_URL_UNPOOLED: ${{ github.ref_name == 'main' && secrets.PROD_DATABASE_URL_UNPOOLED || secrets.STAGING_DATABASE_URL_UNPOOLED }}
