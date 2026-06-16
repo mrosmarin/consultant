@@ -92,6 +92,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
           <div>
             <p className="text-muted-foreground text-xs uppercase tracking-wide">From</p>
             <p className="font-medium">{issuer.legalName}</p>
+            {issuer.contactName ? <p>{issuer.contactName}</p> : null}
             {issuer.addressLines.map((line, i) => (
               <p key={i} className="text-muted-foreground">
                 {line}

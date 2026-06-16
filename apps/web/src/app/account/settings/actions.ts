@@ -26,6 +26,7 @@ export async function saveBusinessSettings(
 
   const values = {
     legalName: get("legalName"),
+    contactName: get("contactName"),
     addressLine1: get("addressLine1"),
     addressLine2: get("addressLine2"),
     city: get("city"),

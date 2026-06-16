@@ -56,6 +56,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings | null }
       </SectionTitle>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field name="legalName" label="Legal name" defaultValue={s?.legalName ?? null} placeholder="EndlessWorlds, LLC" />
+        <Field name="contactName" label="Contact name" defaultValue={s?.contactName ?? null} placeholder="Mitchell Rosmarin" />
         <Field name="taxId" label="Tax ID / EIN (optional)" defaultValue={s?.taxId ?? null} />
         <Field name="email" label="Billing email" defaultValue={s?.email ?? null} type="email" />
         <Field name="phone" label="Phone" defaultValue={s?.phone ?? null} />

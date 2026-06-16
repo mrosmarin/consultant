@@ -384,6 +384,8 @@ export const businessSettings = pgTable("business_settings", {
   userId: text("user_id").notNull(),
   // Issuer identity + address.
   legalName: text("legal_name"),
+  // A person/contact name shown on the invoice alongside the legal name.
+  contactName: text("contact_name"),
   addressLine1: text("address_line1"),
   addressLine2: text("address_line2"),
   city: text("city"),

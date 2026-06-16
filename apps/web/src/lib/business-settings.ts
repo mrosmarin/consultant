@@ -97,6 +97,7 @@ export function paymentLines(s: BusinessSettings | null): string[] {
 // A plain data shape so the PDF module needs only a type import (no db).
 export type IssuerInfo = {
   legalName: string;
+  contactName: string | null;
   addressLines: string[];
   taxId: string | null;
   paymentLines: string[];
@@ -105,6 +106,7 @@ export type IssuerInfo = {
 export function issuerInfo(s: BusinessSettings | null): IssuerInfo {
   return {
     legalName: issuerLegalName(s),
+    contactName: s?.contactName?.trim() || null,
     addressLines: issuerAddressLines(s),
     taxId: issuerTaxId(s),
     paymentLines: paymentLines(s),
