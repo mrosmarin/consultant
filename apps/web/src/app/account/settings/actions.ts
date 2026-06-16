@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db";
-import { businessSettings } from "@/db/schema";
+import { businessSettings, INVOICE_DELETE_MODES } from "@/db/schema";
 import { getAccess } from "@/lib/auth/rbac";
 
 export type SettingsState = { ok: boolean; error?: string } | null;
@@ -47,6 +47,12 @@ export async function saveBusinessSettings(
     paypal: get("paypal"),
     payLinkUrl: get("payLinkUrl"),
     remitNote: get("remitNote"),
+    // Validated enum (NOT NULL, default block) — never null (DEV-155).
+    invoiceDeleteProtection: (INVOICE_DELETE_MODES as readonly string[]).includes(
+      (formData.get("invoiceDeleteProtection") as string) ?? "",
+    )
+      ? (formData.get("invoiceDeleteProtection") as string)
+      : "block",
   };
 
   const [existing] = await db
