@@ -35,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the destructive-SQL guard can diff the push
 
       - uses: pnpm/action-setup@v4
 
@@ -45,6 +47,39 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Data-safety guard (DEV-150): block auto-applying a DESTRUCTIVE migration
+      # to prod without a reviewed data-migration plan. Scans only the migration
+      # files changed in THIS push; a file opts in via a
+      # `-- destructive-approved: <reason>` line once the plan + prod snapshot are
+      # done. Manual workflow_dispatch runs (deliberate) skip this.
+      - name: Guard against unapproved destructive migrations
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            RANGE="HEAD~1 HEAD"   # first push / no before → just the tip commit
+          else
+            RANGE="$BEFORE ${{ github.sha }}"
+          fi
+          FILES=$(git diff --name-only --diff-filter=d $RANGE -- 'apps/web/drizzle/*.sql' || true)
+          if [ -z "$FILES" ]; then echo "No migration changes in this push."; exit 0; fi
+          echo "Changed migrations:"; echo "$FILES"
+          DESTRUCTIVE='drop[[:space:]]+(table|column|constraint)|rename[[:space:]]+(to|column)|set[[:space:]]+data[[:space:]]+type|set[[:space:]]+not[[:space:]]+null|truncate|delete[[:space:]]+from'
+          BAD=""
+          for f in $FILES; do
+            [ -f "$f" ] || continue
+            if grep -iEq "$DESTRUCTIVE" "$f" && ! grep -iq 'destructive-approved' "$f"; then
+              BAD="$BAD $f"
+            fi
+          done
+          if [ -n "$BAD" ]; then
+            echo "::error::Destructive migration without a data-migration plan:$BAD"
+            echo "Per CONTRIBUTING → 'Migration data safety': write the plan, snapshot prod (Neon branch),"
+            echo "backfill + verify, then add a line  -- destructive-approved: <reason>  to the migration."
+            exit 1
+          fi
+          echo "Migrations are additive (or explicitly approved). OK to apply."
 
       - name: Apply migrations → ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         working-directory: apps/web
