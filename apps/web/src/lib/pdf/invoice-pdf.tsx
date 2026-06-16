@@ -102,6 +102,9 @@ export function InvoicePdf({ data }: { data: InvoicePdfData }) {
         <View style={s.row}>
           <View>
             <Text style={s.brand}>{data.issuer.legalName}</Text>
+            {data.issuer.contactName ? (
+              <Text>{data.issuer.contactName}</Text>
+            ) : null}
             {data.issuer.addressLines.map((line, i) => (
               <Text key={i} style={s.muted}>
                 {line}
