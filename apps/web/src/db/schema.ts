@@ -372,3 +372,43 @@ export const payments = pgTable("payments", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
+
+// The owner's business / invoice-issuer profile (DEV-148). Singleton per owner
+// (one active row, upserted from /account/settings). Read live by the invoice
+// PDF + public web view to render the "from" / remit-to block + payment
+// instructions, so clients know who and how to pay. Every payment field is
+// optional and only shown on the invoice when set. Owner-scoped + RLS +
+// soft-delete (app-side scoping by user_id).
+export const businessSettings = pgTable("business_settings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  // Issuer identity + address.
+  legalName: text("legal_name"),
+  addressLine1: text("address_line1"),
+  addressLine2: text("address_line2"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
+  country: text("country"),
+  email: text("email"),
+  phone: text("phone"),
+  taxId: text("tax_id"),
+  // Bank / ACH / wire.
+  bankName: text("bank_name"),
+  bankRouting: text("bank_routing"),
+  bankAccount: text("bank_account"),
+  bankAccountName: text("bank_account_name"),
+  // Check by mail.
+  checkPayableTo: text("check_payable_to"),
+  checkMailingAddress: text("check_mailing_address"),
+  // Online.
+  zelle: text("zelle"),
+  venmo: text("venmo"),
+  paypal: text("paypal"),
+  payLinkUrl: text("pay_link_url"),
+  // Free-text catch-all shown under Payment.
+  remitNote: text("remit_note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+});

@@ -4,6 +4,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, invoices, invoiceLineItems } from "@/db/schema";
 import { formatMoney } from "@/lib/money";
+import { getBusinessSettings, issuerInfo } from "@/lib/business-settings";
 
 // Public, no-login invoice view reached by its random token (DEV-122). Opening it
 // records the first view: stamps viewed_at and promotes a "sent" invoice to
@@ -19,6 +20,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   const [inv] = await db
     .select({
       id: invoices.id,
+      userId: invoices.userId,
       invoiceNumber: invoices.invoiceNumber,
       companyName: companies.name,
       issueDate: invoices.issueDate,
@@ -66,6 +68,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     .where(and(eq(invoiceLineItems.invoiceId, inv.id), isNull(invoiceLineItems.deletedAt)))
     .orderBy(asc(invoiceLineItems.sortOrder));
 
+  const issuer = issuerInfo(await getBusinessSettings(inv.userId));
   const fmt = (n: number | string) => formatMoney(Number(n), inv.currency);
 
   return (
@@ -77,12 +80,28 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
             <h1 className="font-mono text-xl font-semibold">{inv.invoiceNumber}</h1>
           </div>
           <div className="text-right text-sm">
-            <p className="font-medium">{inv.companyName ?? "—"}</p>
             <p className="text-muted-foreground">Issued {inv.issueDate}</p>
             <p className="text-muted-foreground">Due {inv.dueDate}</p>
             <a href={`/invoice/${token}/pdf`} className="text-brand text-xs hover:underline">
               Download PDF ↓
             </a>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <p className="text-muted-foreground text-xs uppercase tracking-wide">From</p>
+            <p className="font-medium">{issuer.legalName}</p>
+            {issuer.addressLines.map((line, i) => (
+              <p key={i} className="text-muted-foreground">
+                {line}
+              </p>
+            ))}
+            {issuer.taxId ? <p className="text-muted-foreground">Tax ID: {issuer.taxId}</p> : null}
+          </div>
+          <div className="sm:text-right">
+            <p className="text-muted-foreground text-xs uppercase tracking-wide">Billed to</p>
+            <p className="font-medium">{inv.companyName ?? "—"}</p>
           </div>
         </div>
 
@@ -136,7 +155,21 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
         </div>
 
         {inv.notes ? <p className="text-muted-foreground mt-4 text-sm">{inv.notes}</p> : null}
-        <p className="text-muted-foreground mt-6 text-xs">EndlessWorlds, LLC</p>
+
+        <div className="mt-6 border-t pt-4">
+          <p className="text-muted-foreground text-xs uppercase tracking-wide">Payment</p>
+          {issuer.paymentLines.length ? (
+            issuer.paymentLines.map((line, i) => (
+              <p key={i} className="text-muted-foreground mt-1 text-sm">
+                {line}
+              </p>
+            ))
+          ) : (
+            <p className="text-muted-foreground mt-1 text-sm">Contact us for payment details.</p>
+          )}
+        </div>
+
+        <p className="text-muted-foreground mt-6 text-xs">{issuer.legalName}</p>
       </div>
     </main>
   );
