@@ -1,6 +1,7 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 
 import { formatMoney } from "@/lib/money";
+import type { IssuerInfo } from "@/lib/business-settings";
 
 // Branded invoice/quote/credit-note PDF (DEV-76). Pure @react-pdf/renderer — no
 // headless browser, renders in a Node route handler. Email delivery is deferred
@@ -23,6 +24,7 @@ export type InvoicePdfData = {
   amount: string;
   notes: string | null;
   paymentTermsDays: number | null;
+  issuer: IssuerInfo;
   lines: { description: string; quantity: string; unitAmount: string; lineTotal: string }[];
 };
 
@@ -47,10 +49,12 @@ export function invoicePdfDataFrom(
     notes: string | null;
   },
   lines: { description: string; quantity: string; unitAmount: string; lineTotal: string }[],
+  issuer: IssuerInfo,
 ): InvoicePdfData {
   return {
     docLabel: "Invoice",
     number: inv.invoiceNumber,
+    issuer,
     companyName: inv.companyName,
     issueDate: inv.issueDate,
     dueDate: inv.dueDate,
@@ -97,8 +101,15 @@ export function InvoicePdf({ data }: { data: InvoicePdfData }) {
       <Page size="A4" style={s.page}>
         <View style={s.row}>
           <View>
-            <Text style={s.brand}>EndlessWorlds, LLC</Text>
-            <Text style={s.muted}>Levittown, NY</Text>
+            <Text style={s.brand}>{data.issuer.legalName}</Text>
+            {data.issuer.addressLines.map((line, i) => (
+              <Text key={i} style={s.muted}>
+                {line}
+              </Text>
+            ))}
+            {data.issuer.taxId ? (
+              <Text style={s.muted}>Tax ID: {data.issuer.taxId}</Text>
+            ) : null}
           </View>
           <View>
             <Text style={s.docTitle}>{data.docLabel.toUpperCase()}</Text>
@@ -179,11 +190,19 @@ export function InvoicePdf({ data }: { data: InvoicePdfData }) {
                 : `Net ${data.paymentTermsDays ?? 30} — due by ${data.dueDate ?? "the due date"}.`
               : "This document is for reference and is not a payment request."}
           </Text>
-          <Text style={s.muted}>Remit by bank transfer; contact us for details.</Text>
+          {data.docLabel === "Invoice"
+            ? data.issuer.paymentLines.length
+              ? data.issuer.paymentLines.map((line, i) => (
+                  <Text key={i} style={s.muted}>
+                    {line}
+                  </Text>
+                ))
+              : <Text style={s.muted}>Contact us for payment details.</Text>
+            : null}
         </View>
 
         <Text style={s.footer} fixed>
-          EndlessWorlds, LLC · Levittown, NY · Thank you for your business.
+          {data.issuer.legalName} · Thank you for your business.
         </Text>
       </Page>
     </Document>
