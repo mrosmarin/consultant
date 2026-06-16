@@ -403,10 +403,30 @@ export async function deleteInvoice(formData: FormData): Promise<void> {
   const id = formData.get("id") as string;
   if (!id) return;
 
+  const uid = session.user.id;
   await db
     .update(invoices)
     .set({ deletedAt: new Date() })
-    .where(and(eq(invoices.id, id), eq(invoices.userId, session.user.id)));
+    .where(and(eq(invoices.id, id), eq(invoices.userId, uid)));
+
+  // Release everything this invoice billed so the work can be re-invoiced
+  // (DEV-154). Without this, the time entries / expenses / milestones stay
+  // stamped against the now-deleted invoice and never resurface to generate.
+  await db
+    .update(timeEntries)
+    .set({ billedAt: null, billedInvoiceId: null })
+    .where(and(eq(timeEntries.billedInvoiceId, id), eq(timeEntries.userId, uid)));
+  await db
+    .update(expenses)
+    .set({ billedAt: null, billedInvoiceId: null })
+    .where(and(eq(expenses.billedInvoiceId, id), eq(expenses.userId, uid)));
+  await db
+    .update(companyMilestones)
+    .set({ status: "pending", invoicedInvoiceId: null })
+    .where(and(eq(companyMilestones.invoicedInvoiceId, id), eq(companyMilestones.userId, uid)));
+
   revalidatePath("/account/invoices");
   revalidatePath("/account");
+  revalidatePath("/account/timesheets");
+  revalidatePath("/account/expenses");
 }
