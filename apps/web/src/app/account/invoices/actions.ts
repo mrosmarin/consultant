@@ -23,6 +23,7 @@ import { parseLineItems, parseDiscount } from "@/lib/invoice-input";
 import { sendEmail } from "@/lib/email";
 import { formatMoney } from "@/lib/money";
 import { InvoicePdf, invoicePdfDataFrom } from "@/lib/pdf/invoice-pdf";
+import { getBusinessSettings, issuerInfo } from "@/lib/business-settings";
 
 export type InvoiceState = { ok: boolean; error?: string } | null;
 
@@ -107,7 +108,10 @@ export async function sendInvoice(_prev: InvoiceState, formData: FormData): Prom
     .where(and(eq(invoiceLineItems.invoiceId, inv.id), isNull(invoiceLineItems.deletedAt)))
     .orderBy(asc(invoiceLineItems.sortOrder));
 
-  const buffer = await renderToBuffer(InvoicePdf({ data: invoicePdfDataFrom(inv, lines) }));
+  const issuer = issuerInfo(await getBusinessSettings(session.user.id));
+  const buffer = await renderToBuffer(
+    InvoicePdf({ data: invoicePdfDataFrom(inv, lines, issuer) }),
+  );
   const pdfBase64 = Buffer.from(buffer).toString("base64");
 
   const h = await headers();

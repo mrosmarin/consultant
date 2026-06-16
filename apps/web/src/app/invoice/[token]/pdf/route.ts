@@ -4,6 +4,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, invoices, invoiceLineItems } from "@/db/schema";
 import { InvoicePdf, invoicePdfDataFrom } from "@/lib/pdf/invoice-pdf";
+import { getBusinessSettings, issuerInfo } from "@/lib/business-settings";
 
 // Public, no-login invoice PDF reached by its random token (DEV-76). Same token
 // as the read-only view; not guarded by the proxy (matcher is /account/* only).
@@ -19,6 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   const [inv] = await db
     .select({
       id: invoices.id,
+      userId: invoices.userId,
       invoiceNumber: invoices.invoiceNumber,
       companyName: companies.name,
       paymentTermsDays: companies.paymentTermsDays,
@@ -54,7 +56,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     .where(and(eq(invoiceLineItems.invoiceId, inv.id), isNull(invoiceLineItems.deletedAt)))
     .orderBy(asc(invoiceLineItems.sortOrder));
 
-  const buffer = await renderToBuffer(InvoicePdf({ data: invoicePdfDataFrom(inv, lines) }));
+  const issuer = issuerInfo(await getBusinessSettings(inv.userId));
+  const buffer = await renderToBuffer(
+    InvoicePdf({ data: invoicePdfDataFrom(inv, lines, issuer) }),
+  );
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
